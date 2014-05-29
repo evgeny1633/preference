@@ -1,9 +1,9 @@
-//client // Все комментарие находятся на сервере
+﻿//client // Все комментарие находятся на сервере
 #include <iostream>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <unistd.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <string.h>
 
 using namespace std;
 
@@ -18,16 +18,17 @@ int main()
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if(sock < 0)
     {
-        cout << "socket" << endl;
+        cout << strerror(errno) << endl;
         return 99;
     }
 
     addr.sin_family = AF_INET;
     addr.sin_port = htons(3425); // или любой другой порт...
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    //addr.sin_addr.s_addr = inet_addr("89.249.169.99");
     if(connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
-        cout << "connect" << endl;
+        cout << strerror(errno) << endl;
         return 98;
     }
 
