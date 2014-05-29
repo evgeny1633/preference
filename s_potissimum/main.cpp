@@ -47,9 +47,11 @@ int main()
             bytes_read = recv(sock, buf, 1024, 0);// то же, что и send
             if(bytes_read <= 0) break;
             send(sock, buf, bytes_read, 0); //дескриптор, указатель на буфер с данными, длинна буфера в байтах и набор битовых флагов. возвращает -1 в случае неудачи
-            cout << "messenge sent" << endl;
+            cout << "message sent" << endl;
+            usleep(100000);
         }
 
+        usleep(100000);
         close(sock); //закрыть соединение
     }
 
