@@ -4,6 +4,10 @@
 #include <QWidget>
 #include <QMenuBar>
 #include <QLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QDateTime>
+#include <QString>
 
 class Widget : public QWidget
 {
@@ -20,8 +24,20 @@ private:
 
     QHBoxLayout *basicgrid;
     QVBoxLayout *lv_grid;
-    QHBoxLayout *lh_grid;
+    QHBoxLayout *ava_grid;
+    QHBoxLayout *upd_grid;
     QVBoxLayout *rv_grid;
+
+    QLabel *ava;
+    QLabel *update_label;
+
+    QPushButton *update_button;
+
+    QFrame *frame;
+
+    QDateTime *up_date;
+
+    //void createUi(QMainWindow *parent);
 };
 
 #endif // WIDGET_H
