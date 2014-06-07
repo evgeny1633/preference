@@ -14,9 +14,11 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        widget.cpp
+        widget.cpp \
+    statistics.cpp
 
-HEADERS  += widget.h
+HEADERS  += widget.h \
+    statistics.h
 
 RESOURCES += \
     avatars.qrc

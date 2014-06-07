@@ -31,7 +31,7 @@ void Widget::createUi(QWidget *parent)
     frame -> setFrameStyle(QFrame::VLine | QFrame::Raised);
 
     drawGrid(this);
-    toolBar(this);
+    drawtoolBar(this);
 }
 
 void Widget::drawGrid(QWidget *parent)
@@ -67,7 +67,7 @@ void Widget::drawGrid(QWidget *parent)
     basicgrid -> addLayout(rv_grid);
 }
 
-void Widget::toolBar(QWidget *parent)
+void Widget::drawtoolBar(QWidget *parent)
 {
     mainbar = new QMenuBar(this);
 

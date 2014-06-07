@@ -39,7 +39,7 @@ private:
 
     void createUi(QWidget *parent);
     void drawGrid(QWidget *parent);
-    void toolBar(QWidget *parent);
+    void drawtoolBar(QWidget *parent);
 };
 
 
