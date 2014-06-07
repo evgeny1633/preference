@@ -37,7 +37,10 @@ private:
 
     QDateTime *up_date;
 
-    //void createUi(QMainWindow *parent);
+    void createUi(QWidget *parent);
+    void drawGrid(QWidget *parent);
+    void toolBar(QWidget *parent);
 };
+
 
 #endif // WIDGET_H
