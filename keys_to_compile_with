@@ -1,0 +1,1 @@
+ -lboost_system -lboost_thread -lpthread -std=c++11 
