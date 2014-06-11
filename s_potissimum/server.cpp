@@ -91,51 +91,58 @@ int main(int argc, char* argv[])
 
 void iffunction(char input_message)
 {
-std::string message = &input_message;
-std::string block_1 = message.substr(0, _BLOCK_SIZE_);
-std::string block_2 = message.substr(_BLOCK_SIZE_, 2 * _BLOCK_SIZE_ );
+
+   std::string message = &input_message;
+   std::vector<std::string> block;
+   for ( int i = 0; i < 10; i++ )   //10 -- there should be some sane variable, we'll think about this...
+   {
+      block.push_back(message.substr(i * _BLOCK_SIZE_, (i + 1) * _BLOCK_SIZE_));
+      block[i] = block[i].substr(0, block[i].find_first_of(_EMPTY_SYMBOL_));
+
+   }
 
 
-if ( block_1.substr(0, block_1.find_first_of(_EMPTY_SYMBOL_)) == "alive" )
-{
-//send him back alive signal
-//send others that hi is connected
+   if ( block[1] == "alive" )
+   {
+   //send him back alive signal
+   //send others that hi is connected
+   }
+
+   if ( block[1] == "statistics" )
+   {
+   //send him statistics
+   }
+
+   if ( block[1] == "trade" )
+   {
+
+
+   }
+
+   if ( block[1] == "game" )
+   {
+
+
+   }
+
+   if ( block[1] == "offer" )
+   {
+
+
+   }
+
+   if ( block[1] == "chat" )
+   {
+   //then block[2] is playername
+   //send a message to everyone
+
+   }
+
+   if ( block[1] == "service" )
+   {
+   //whatever...
+   }
+
+
 }
 
-if ( block_1.substr(0, block_1.find_first_of(" ")) == "statistics" )
-{
-//send him statistics
-}
-
-if ( block_1.substr(0, block_1.find_first_of(" ")) == "trade" )
-{
-
-
-}
-
-if ( block_1.substr(0, block_1.find_first_of(" ")) == "game" )
-{
-
-
-}
-
-if ( block_1.substr(0, block_1.find_first_of(" ")) == "offer" )
-{
-
-
-}
-
-if ( block_1.substr(0, block_1.find_first_of(" ")) == "chat" )
-{
-//block_2 is playername
-//send a message to everyone
-
-}
-
-if ( block_1.substr(0, block_1.find_first_of(" ")) == "service" )
-{
-//whatever...
-}
-
-
-}
