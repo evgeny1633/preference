@@ -2,7 +2,7 @@
 //this script allows to send messages directly from terminal
 
 #ifndef _CIN_SENDER_
-#define _CIN_SENDER_
+#define _CIN_SENDER_ 
 
 #include "include.h"
 

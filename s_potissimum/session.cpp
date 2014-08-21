@@ -1,57 +1,19 @@
-//
-// blocking_tcp_echo_server.cpp
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//
-// Copyright (c) 2003-2013 Christopher M. Kohlhoff (chris at kohlhoff dot com)
-//
-// Distributed under the Boost Software License, Version 1.0. (See accompanying
-// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
-//
+#ifndef _P_SERVER_
+#define _P_SERVER_
 
 #include "../include/include.h"
 #include "../include/cin_sender.h"
+#include <QApplication>
 
 using boost::asio::ip::tcp;
-// const int max_buffer_length = 1024;
 
-void session(tcp::socket sock, std::string &message);
-void server(boost::asio::io_service& io_service, unsigned short port);
-void iffunction(tcp::socket& sock, std::string &input_message);
-// void iffunction(tcp::socket sock, std::string &input_message);
-int get_int_client_id(std::string message);
-std::string get_client_id(std::string message);
-std::string get_head(std::string message);
-
-
-int main(int argc, char* argv[])
-{
-  try
-  {
-    if (argc != 2)
-    {
-      std::cerr << "Usage: ./_server <port>\n";
-      return 1;
-    }
-
-    boost::asio::io_service io_service;
-    //start the server
-    server(io_service, std::atoi(argv[1]));
-  }
-  catch (std::exception& e)
-  {
-    std::cerr << "Exception: " << e.what() << "\n";
-  }
-
-  return 0;
-}
-
-void session(tcp::socket sock, std::string &message)
+void session(tcp::socket sock, std::string &message/*, QTextEdit* textBox*/)
 {
   std::stringstream ss;
   ss.str("");
   try
   {
-    for (;;)
+    for (;;) 
     {
       char data[max_buffer_length] = {};
       boost::system::error_code error;
@@ -66,6 +28,8 @@ void session(tcp::socket sock, std::string &message)
 //       cin_sender(std::ref(sock)); 
       ss.str("");
       ss << "The original message was \"" << data << "\"";
+//       textBox->append(QString::fromStdString(data));
+//       textBox->append((QString)data);
       std::cout << ss.str().c_str() << std::endl;
       message = data;
       std::strcpy (data, ss.str().c_str());
@@ -84,29 +48,6 @@ void session(tcp::socket sock, std::string &message)
   catch (std::exception& e)
   {
     std::cerr << "Exception in thread: " << e.what() << "\n";
-  }
-}
-
-void server(boost::asio::io_service& io_service, unsigned short port)
-{
-  std::cout << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-  std::cout << "Server is started " << std::endl;
-  std::cout << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-  std::string message;
-  tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), port));
-  for (;;)
-  {
-    //open socket
-    tcp::socket sock(io_service);
-    //wait for message
-    acceptor.accept(sock);
-    //somebody connected; read what they sent to us
-    std::thread(session, std::move(sock), std::ref(message)).detach();
-    std::cout << "message -> " << message << std::endl;
-    usleep(100);  //there is mistake. message here is still empty, because thread doesn't finish by that time. delay added; to be fixed. 
-//     iffunction(message);
-//     usleep(10);
-    std::cout << "2message -> " << message << std::endl;
   }
 }
 
@@ -221,7 +162,7 @@ std::string get_head(std::string message)
    return head;  
 }
 
-
+#endif //_P_SERVER_
 
 
 
