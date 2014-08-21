@@ -3,11 +3,17 @@
 ######################################################################
 
 TEMPLATE = app
-TARGET = qt_client
+TARGET = server
 INCLUDEPATH += .
 QT += widgets
 
 # Input
-HEADERS += statistics.h widget.h
-SOURCES += main.cpp statistics.cpp widget.cpp
+HEADERS += statistics.h widget.h log.h \
+    ../include/cin_sender.h \
+    ../include/include.h
+SOURCES += main.cpp statistics.cpp widget.cpp log.cpp \
+    session.cpp
 RESOURCES += avatars.qrc
+
+FORMS += \
+    Log.ui
