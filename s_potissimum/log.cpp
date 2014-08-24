@@ -1,5 +1,6 @@
 #include "log.h"
 #include "ui_log.h"
+#include <iostream>
 
 Log::Log(QWidget *parent) :
     QWidget(parent),
@@ -8,6 +9,13 @@ Log::Log(QWidget *parent) :
   ui->setupUi(this);
 }
 
+void Log::receive_message(QString new_message)
+{
+//   findChild<QTextEdit *>("textEdit")->append(QString::fromStdString(new_message));
+  findChild<QTextEdit *>("textEdit")->append(new_message);
+  std::cout << "Log::receive_message initiated. message:" << new_message.toUtf8().constData() << std::endl;
+  qApp->processEvents();
+}
 
 /*
 //void Log::createUi(QWidget *parent)

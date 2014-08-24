@@ -19,6 +19,7 @@ public:
 signals:
 
 public slots:
+  void receive_message(QString new_message);
 
 private:
     Ui::Log *ui;

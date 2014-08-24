@@ -9,11 +9,15 @@ QT += widgets
 
 # Input
 HEADERS += statistics.h widget.h log.h \
-    ../include/cin_sender.h \
-    ../include/include.h
+    ../include/include.h \
+    ../include/updater.h
 SOURCES += main.cpp statistics.cpp widget.cpp log.cpp \
-    session.cpp
+    ../include/cin_sender.cpp \
+    ../include/updater.cpp
 RESOURCES += avatars.qrc
 
 FORMS += \
     Log.ui
+QMAKE_CXXFLAGS += -std=c++11 -lpthread -lboost_system
+
+LIBS += -std=c++11 -lpthread -lboost_system

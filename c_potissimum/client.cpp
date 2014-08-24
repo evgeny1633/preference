@@ -9,7 +9,7 @@
 //
 
 #include "../include/include.h"
-#include "../include/cin_sender.h"
+#include "../include/cin_sender.cpp"
 
 using boost::asio::ip::tcp;
 

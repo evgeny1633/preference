@@ -8,7 +8,16 @@
 #include <thread>
 #include <utility>
 #include <sstream>
+
 #include <boost/asio.hpp>
+
+#include <QWidget>
+#include <QApplication>
+#include <QTextEdit>
+#include <QObject>
+
+#include "widget.h"
+#include "updater.h"
 
 #include <cstring>
 
@@ -20,12 +29,7 @@
 
 const int max_buffer_length = 1024;
 
-void session(boost::asio::ip::tcp::socket sock, std::string &message);
-void server(boost::asio::io_service& io_service, unsigned short port);
-void iffunction(boost::asio::ip::tcp::socket& sock, std::string &input_message);
-// void iffunction(boost::asio::ip::tcp::socket sock, std::string &input_message);
-int get_int_client_id(std::string message);
-std::string get_client_id(std::string message);
-std::string get_head(std::string message);
+
+
 
 #endif
