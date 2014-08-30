@@ -7,10 +7,11 @@
 #include "../include/include.h"
 #include "../include/cin_sender.cpp"
 #include <QApplication>
+#include <QThread>
 
 void append_text_box(QTextEdit *textBox, std::string message);
 void session(boost::asio::ip::tcp::socket sock, std::string &message, Updater &updater);
-void server(boost::asio::io_service& io_service, unsigned short port);
+void server(boost::asio::io_service &io_service, unsigned short port, Updater &updater);
 void iffunction(boost::asio::ip::tcp::socket& sock, std::string &input_message);
 int get_int_client_id(std::string message);
 std::string get_client_id(std::string message);
@@ -38,9 +39,11 @@ void session(tcp::socket sock, std::string &message, Updater &updater)
       ss.str("");      ss << "The original message was \"" << data << "\"";      std::cout << ss.str().c_str() << std::endl;
       message = data;
 //       append_text_box(textBox, message);
-      std::cout << "__LINE__ = " << __LINE__ << std::endl;
+      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
       updater.send_message_slot(QString::fromStdString(message));
-      std::cout << "__LINE__ = " << __LINE__ << std::endl;
+//       updater.send_message_signal(QString::fromStdString(message));
+//       qApp->processEvents();
+      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
       std::strcpy (data, ss.str().c_str());
       iffunction(std::ref(sock), message);
 //       std::cout << "__LINE__ = " << __LINE__ << std::endl;
@@ -68,9 +71,10 @@ void iffunction(tcp::socket& sock, std::string &input_message)
    
    boost::asio::write(sock, boost::asio::buffer(std::strcpy (data, input_message.c_str()), max_buffer_length));    //send message back to client
    boost::asio::write(sock, boost::asio::buffer(data, max_buffer_length));    //send message back to client
+   std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
    
    std::vector<std::string> block;
-   
+   /*
 //    input_message = head;
    for ( int i = 0; i < 2; i++ )   //10 -- there should be some sane variable, we'll think about this...this is number of blocks
    {
@@ -78,7 +82,6 @@ void iffunction(tcp::socket& sock, std::string &input_message)
       block.push_back(" ");
 //       block[i] = block[i].substr(0, block[i].find_first_of(_EMPTY_SYMBOL_));
    }
-
 
    if ( block[1] == "alive" )
    {
@@ -121,7 +124,7 @@ void iffunction(tcp::socket& sock, std::string &input_message)
    //whatever...
    }
 //    std::cout << "__LINE__ = " << __LINE__ << std::endl;
-
+*/
 
 }
 
@@ -148,7 +151,7 @@ void append_text_box(QTextEdit *textBox, std::string message)
 {
 //   textBox.append(QString::fromStdString(message));
   textBox->append(QString::fromStdString(message));
-  qApp->processEvents();
+//   qApp->processEvents();
 }
 
 
@@ -160,7 +163,11 @@ int main(int argc, char *argv[])
   QApplication a(argc, argv);
   Widget w;
   //w.show();
-  std::stringstream ss;
+//   std::stringstream ss;
+  Log log;
+  Updater updater;
+  QObject::connect(&updater, SIGNAL(send_message_signal(QString)), &log, SLOT(receive_message(QString)));
+  
   /*
 //   Log log;
 //   QTextEdit *textBox = log.findChild<QTextEdit *>("textEdit");  
@@ -188,35 +195,40 @@ int main(int argc, char *argv[])
       std::cerr << "Usage: ./_server <port>\n";
       return 1;
     }
-
+    log.show();
     boost::asio::io_service io_service;
     //start the server
-    server(io_service, std::atoi(argv[1]));
+//     server(io_service, std::atoi(argv[1]));
+// //     server(io_service, std::atoi(argv[1]), updater);
+//     std::thread(server, std::ref(io_service), std::atoi(argv[1]), std::ref(updater)).detach();
+    std::thread server_thread(server, boost::ref(io_service), std::atoi(argv[1]), std::ref(updater));//.detach();
+//     std::cout << "exec: " << std::endl;
+    a.exec(); //oh god this is mandatory. nobody told me that this shit is called main thread. stupid qt, i hate it. at last this works.
+//     sthread.join();
   }
   catch (std::exception& e)
   {
     std::cerr << "Exception: " << e.what() << "\n";
   }
   
-  return a.exec();
+//   return a.exec();
+  return 0;
 }
 
 
 
-void server(boost::asio::io_service& io_service, unsigned short port)
+void server(boost::asio::io_service &io_service, unsigned short port, Updater &updater)
 {
   std::cout << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
   std::cout << "Server is started " << std::endl;
   std::cout << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
   std::string message;
   std::stringstream ss;
-  Log log;
-  Updater updater;
+//   Log log;
+//   Updater updater;
 //   QTextEdit *textBox = log.findChild<QTextEdit *>("textEdit");
-  std::cout << "__LINE__ = " << __LINE__ << std::endl;
-  QObject::connect(&updater, SIGNAL(send_message_signal(QString)), &log, SLOT(receive_message(QString)));
-  std::cout << "__LINE__ = " << __LINE__ << std::endl;
-  log.show();
+//   QObject::connect(&updater, SIGNAL(send_message_signal(QString)), &log, SLOT(receive_message(QString)));
+//   log.show();
   /*
   for(int i = 0; i < 10; i++  )
   {
@@ -224,24 +236,27 @@ void server(boost::asio::io_service& io_service, unsigned short port)
       ss << i;
       textBox->append(QString::fromStdString(ss.str()));
   }*/
-
+  std::cout << "port = " << port << std::endl;
+  std::cout << "server __LINE__ = " << __LINE__ << std::endl;
   tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), port));
   for (;;)
   {
+    std::cout << "server __LINE__ = " << __LINE__ << std::endl;
     tcp::socket sock(io_service);    //open socket
+    std::cout << "server __LINE__ = " << __LINE__ << std::endl;
     acceptor.accept(sock);           //wait for message
-    std::cout << "__LINE__ = " << __LINE__ << std::endl;
-    log.show();
-    qApp->processEvents();
+    std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+//     log.show();
+//     qApp->processEvents();
+    std::cout << "server __LINE__ = " << __LINE__ << std::endl;
     std::thread(session, std::move(sock), std::ref(message), std::ref(updater)).detach(); //somebody connected; read what they sent to us
-    std::cout << "message -> " << message << std::endl;
-//     usleep(150);  //there is mistake. message here is still empty, because thread doesn't finish by that time. delay added; to be fixed. 
-//     textBox->append(QString::fromStdString(message));
-//     log.update();
-//     log.repaint();
-    log.show();
-    qApp->processEvents();
-    std::cout << "2message -> " << message << std::endl;
+//     std::thread(session, std::move(sock), std::ref(message), std::ref(updater)).detach(); //somebody connected; read what they sent to us
+//     std::cout << "message -> " << message << std::endl;
+    std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+//     log.show();
+//     qApp->processEvents();
+    std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+//     std::cout << "2message -> " << message << std::endl;
   }
 }
 

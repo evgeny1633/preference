@@ -10,6 +10,7 @@
 #include <sstream>
 
 #include <boost/asio.hpp>
+#include <boost/ref.hpp>
 
 #include <QWidget>
 #include <QApplication>
