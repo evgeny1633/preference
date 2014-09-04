@@ -8,10 +8,13 @@
 #include <thread>
 #include <utility>
 #include <sstream>
+#include <stdlib.h>     /* srand, rand */
+#include <time.h>       /* time */
 
 #include <boost/asio.hpp>
 #include <boost/ref.hpp>
 
+#ifndef _CLIENT_
 #include <QWidget>
 #include <QApplication>
 #include <QTextEdit>
@@ -19,6 +22,7 @@
 
 #include "widget.h"
 #include "updater.h"
+#endif
 
 #include <cstring>
 

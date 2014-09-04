@@ -8,8 +8,9 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
+#define _CLIENT_
+
 #include "../include/include.h"
-#include "../include/cin_sender.cpp"
 
 using boost::asio::ip::tcp;
 
@@ -18,6 +19,32 @@ std::string make_client_id(int int_client_id);
 
 //enum { max_buffer_length = 1024 };
 // const int max_buffer_length = 1024;
+
+void cin_sender(boost::asio::ip::tcp::socket& sock)
+{
+  std::string message;
+  try
+  {
+    for (;;)
+    {
+      char data[max_buffer_length] = {};
+
+      std::cout << "Feel free to enter message here...Format is: client_id" << _EMPTY_SYMBOL_ << "head" << _EMPTY_SYMBOL_ << "anything else. _EMPTY_SYMBOL_ = " << _EMPTY_SYMBOL_ << " ; _ID_LENGTH_ = " << _ID_LENGTH_ << " ; _HEAD_LENGTH_ = " << _HEAD_LENGTH_ << std::endl;
+      
+      getline ( std::cin, message );
+      std::cin.clear();
+      std::strcpy (data, message.c_str());
+      boost::asio::write(sock, boost::asio::buffer(data, max_buffer_length));    //send message back to client
+      std::cout << "Message succesfully sent ! " << std::endl;
+//       std::cout << "__LINE__ = " << __LINE__ << std::endl;
+    }
+  }
+  catch (std::exception& e)
+  {
+    std::cerr << "Exception in cin thread: " << e.what() << "\n";
+  }
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -28,8 +55,11 @@ int main(int argc, char* argv[])
    std::string client_id;
 //    stringstream << "00" << int_client_id;
 //    client_id = stringstream.str();
-   
-   int_client_id = 98;
+
+
+   srand (time(NULL));  // initialize random seed: 
+//    int_client_id = (int) (rand() % 10 + 3) ; //range 3-12
+   int_client_id = (int) 18; //range 3-12
    head = "alive";
    head = make_head(head);
    client_id = make_client_id(int_client_id);

@@ -1002,7 +1002,8 @@ main.o: main.cpp widget.h \
 		../include/updater.h \
 		../include/include.h \
 		/usr/include/qt5/QtCore/QObject \
-		../include/cin_sender.cpp
+		/usr/include/qt5/QtCore/QThread \
+		/usr/include/qt5/QtCore/qthread.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o main.cpp
 
 statistics.o: statistics.cpp statistics.h
