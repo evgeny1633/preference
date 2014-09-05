@@ -17,13 +17,6 @@ struct client_list
   std::vector <int> ids;
   std::vector <tcp::socket> sockets;
 } clients;  //make it global 
-struct card
-{
-  int number;
-  std::string suit;
-  std::string value;
-  std::string name;
-};
 
 Updater updater;
 
@@ -38,7 +31,7 @@ void session(int inner_number);
 void server(boost::asio::io_service &io_service, unsigned short port);
 void iffunction(boost::asio::ip::tcp::socket& sock, std::string &input_message);
 void distribution();
-void rearrangement(std::vector<card> &hand);
+// void rearrangement(std::vector<card> &hand);
 int get_int_client_id(std::string message);
 std::string get_client_id(std::string message);
 std::string get_head(std::string message);
@@ -411,24 +404,7 @@ void distribution()
   output("\npl3:");   for (auto it = pl3.begin(); it != pl3.end(); ++it)     output((*it).name);
 }
 
-void rearrangement(std::vector<card> &hand)
-{
-  std::vector<int> numbers;
-  for (auto it = hand.begin(); it != hand.end(); ++it)
-    numbers.push_back((*it).number);
-  std::sort(numbers.begin(), numbers.end());
-  for (auto nit = numbers.begin(); nit != numbers.end(); ++nit)
-  {
-    for (auto it = hand.begin(); it != hand.end(); ++it)
-    {
-      if ((*it).number == (*nit))
-      {
-        std::swap(hand.at(it - hand.begin()), hand.at(nit - numbers.begin()));
-        break;
-      }
-    }
-  }
-}
+
 
 
 std::string get_client_id(std::string message)
