@@ -10,6 +10,7 @@
 #include <sstream>
 #include <stdlib.h>     /* srand, rand */
 #include <time.h>       /* time */
+#include <algorithm>    /* std::random_shuffle */
 
 #include <boost/asio.hpp>
 #include <boost/ref.hpp>

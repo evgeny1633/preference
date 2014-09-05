@@ -17,35 +17,42 @@ struct client_list
   std::vector <int> ids;
   std::vector <tcp::socket> sockets;
 } clients;  //make it global 
+struct card
+{
+  int number;
+  std::string suit;
+  std::string value;
+  std::string name;
+};
+
+Updater updater;
 
 // template<class TYPE>
 // void output (TYPE data, Updater &updater);
-void message_sender(int inner_number = 0, std::string message = "", bool test = true);
-// void message_sender(int inner_number , std::string message , bool test );
-void output (std::stringstream ss, Updater &updater);
-void output (std::string string, Updater &updater);
+void test_message_sender(int inner_number = 0, std::string message = "", bool test = true);
+void message_sender(int inner_number, std::string message);
+void output (std::stringstream ss);
+void output (std::string string);
 void append_text_box(QTextEdit *textBox, std::string message);
-// void session(boost::asio::ip::tcp::socket sock, std::string &message, Updater &updater);
-void session(int inner_number, std::string &message, Updater &updater);
-void server(boost::asio::io_service &io_service, unsigned short port, Updater &updater);
+void session(int inner_number);
+void server(boost::asio::io_service &io_service, unsigned short port);
 void iffunction(boost::asio::ip::tcp::socket& sock, std::string &input_message);
+void distribution();
+void rearrangement(std::vector<card> &hand);
 int get_int_client_id(std::string message);
 std::string get_client_id(std::string message);
 std::string get_head(std::string message);
 
 
 
-
-
-// void session(tcp::socket sock, std::string &message, Updater &updater)
-// void session(client_list clients, std::string &message, Updater &updater)
-void session(int inner_number, std::string &message, Updater &updater)
+void session(int inner_number)
 {
 //   std::cout << "session __LINE__ = " << __LINE__ << std::endl;
   std::cout << "inner_number = " << inner_number << std::endl;
   std::cout << "clients.ids.size() = " << clients.ids.size() << std::endl;
   int client_id = clients.ids.at(inner_number);
   std::stringstream ss;
+  std::string message;
   ss.str("");
   try
   {
@@ -71,11 +78,9 @@ void session(int inner_number, std::string &message, Updater &updater)
       message = data;
 
       updater.send_message_slot(QString::fromStdString(message));
-//       updater.send_message_signal(QString::fromStdString(message));
       std::strcpy (data, ss.str().c_str());
       iffunction(std::ref(_sock_), message);
       boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
-//       boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
     }
   }
   catch (std::exception& e)
@@ -91,10 +96,10 @@ void iffunction(tcp::socket& sock, std::string &input_message)
    char data[max_buffer_length] = {};
    std::string client_id = get_client_id(message);
    std::string head      = get_head(message);
-   boost::asio::write(sock, boost::asio::buffer(std::strcpy (data, input_message.c_str()), max_buffer_length));    //send message back to client
+   std::strcpy (data, input_message.c_str());
    boost::asio::write(sock, boost::asio::buffer(data, max_buffer_length));    //send message back to client
    std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
-   
+
    std::vector<std::string> block;
    /*
 //    input_message = head;
@@ -156,7 +161,6 @@ int main(int argc, char *argv[])
   Widget w;
   //w.show();
   Log log;
-  Updater updater;
   
   QObject::connect(&updater, SIGNAL(send_message_signal(QString)), &log, SLOT(receive_message(QString)));
   
@@ -190,11 +194,7 @@ int main(int argc, char *argv[])
     log.show();
     boost::asio::io_service io_service;
     //start the server
-/*
-//     server(io_service, std::atoi(argv[1]));
-// //     server(io_service, std::atoi(argv[1]), updater);
-//     std::thread(server, std::ref(io_service), std::atoi(argv[1]), std::ref(updater)).detach();*/
-    std::thread server_thread(server, boost::ref(io_service), std::atoi(argv[1]), std::ref(updater));//.detach();
+    std::thread server_thread(server, boost::ref(io_service), std::atoi(argv[1]));//.detach();
     a.exec(); //oh god this is mandatory. nobody told me that this shit is called main thread. stupid qt, i hate it. at last this works now.
     server_thread.join();
   }
@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
 }
 
 
-void server(boost::asio::io_service &io_service, unsigned short port, Updater &updater)
+void server(boost::asio::io_service &io_service, unsigned short port)
 {
 //   std::cout << "server __LINE__ = " << __LINE__ << std::endl;
   std::cout << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
@@ -218,10 +218,13 @@ void server(boost::asio::io_service &io_service, unsigned short port, Updater &u
   bool reconnected;
   int id;
   int inner_number;
+  std::cout << "server __LINE__ = " << __LINE__ << std::endl;  
+  distribution();
+  std::cout << "server __LINE__ = " << __LINE__ << std::endl;
   
   std::cout << "port = " << port << std::endl;
   tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), port));
-  std::thread([]{ message_sender();}).detach();
+  std::thread([]{ test_message_sender();}).detach();
   for (;;)
   {
     tcp::socket sock(io_service);    //open socket
@@ -232,12 +235,6 @@ void server(boost::asio::io_service &io_service, unsigned short port, Updater &u
     boost::system::error_code error;
     std::cout << "server __LINE__ = " << __LINE__ << std::endl;
     sock.read_some(boost::asio::buffer(data), error); //read message
-    /*
-    if (error == boost::asio::error::eof)
-        break; // Connection closed cleanly by peer.
-    else if (error)
-        throw boost::system::system_error(error); // Some other error.
-        */
     message = data;
     if (get_head(message) == "alive")
     {
@@ -246,16 +243,14 @@ void server(boost::asio::io_service &io_service, unsigned short port, Updater &u
       std::cout << "server __LINE__ = " << __LINE__ << std::endl;
       for (auto iterator = clients.ids.begin(); iterator != clients.ids.end(); ++iterator)
       {
-        std::cout << "server __LINE__ = " << __LINE__ << std::endl;
         if (id == (*iterator))
         {
-          ss.str(""); ss << "Client # " << id << " reconnected\n"; output(ss.str(), std::ref(updater));
+          ss.str(""); ss << "Client # " << id << " reconnected\n"; output(ss.str());
           reconnected = true;
           inner_number = iterator - clients.ids.begin();
           clients.sockets.at(inner_number) = std::move(sock);
         }
       }
-      std::cout << "server __LINE__ = " << __LINE__ << std::endl;
       if (!reconnected)
       {
         clients.ids.push_back(id);
@@ -266,17 +261,17 @@ void server(boost::asio::io_service &io_service, unsigned short port, Updater &u
     }
     
     std::cout << "server __LINE__ = " << __LINE__ << std::endl;
-    std::thread(session, inner_number, std::ref(message), std::ref(updater)).detach(); //somebody connected; read what they sent to us
+    std::thread(session, inner_number).detach(); //somebody connected; read what they sent to us
 //     std::thread(session, std::ref(clients), std::ref(message), std::ref(updater)).detach(); //somebody connected; read what they sent to us
   }
 }
 
-void message_sender(int inner_number, std::string message, bool test)
+void test_message_sender(int inner_number, std::string message, bool test)
 {
   std::stringstream ss;
   int check_time = -1;
   int counter = 0;
-  srand (time(NULL));  // initialize random seed 
+  
   for (;;)
   {
     try
@@ -304,6 +299,7 @@ void message_sender(int inner_number, std::string message, bool test)
         check_time = time(NULL);
         counter++;
         
+        srand (time(NULL));  // initialize random seed 
         ss.str(""); ss << (rand() % 80000 + 10000); //rand from 10000 to 90000
         message = ss.str();
       }
@@ -317,6 +313,123 @@ void message_sender(int inner_number, std::string message, bool test)
     }
   }
 }
+
+void message_sender(int inner_number, std::string message)
+{
+  std::stringstream ss;
+  char data[max_buffer_length] = {};      
+  try
+  {
+    std::strcpy (data, message.c_str());
+    boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
+    std::cout << "Message \"" << data << "\" sent to client with id " << clients.ids.at(inner_number) << std::endl;
+  }
+  catch (std::exception& e)
+  {
+    std::cerr << "Exception in message sender: " << e.what() << "\n";
+  }
+}
+
+void distribution()
+{
+//   std::cout << "distribution __LINE__ = " << __LINE__ << std::endl;
+  std::vector<card> deck;
+  card current_card;
+  for ( int i = 0; i < 32; i++ )
+  {
+    if ( i % 8 == 0 ) current_card.value = "seven";
+    if ( i % 8 == 1 ) current_card.value = "eight";
+    if ( i % 8 == 2 ) current_card.value = "nine";
+    if ( i % 8 == 3 ) current_card.value = "ten";
+    if ( i % 8 == 4 ) current_card.value = "jack";
+    if ( i % 8 == 5 ) current_card.value = "queen";
+    if ( i % 8 == 6 ) current_card.value = "king";
+    if ( i % 8 == 7 ) current_card.value = "ace";
+    
+    if ( i < 8  )            current_card.suit = "spades";
+    if ( i >= 8  && i < 16 ) current_card.suit = "clubs";
+    if ( i >= 16 && i < 24 ) current_card.suit = "diamonds";
+    if ( i >= 24 )           current_card.suit = "hearts";
+    
+    current_card.number = i;
+    current_card.name   = current_card.value + " of " + current_card.suit;
+    
+    deck.push_back(current_card);
+  }
+  
+  std::random_shuffle(deck.begin(), deck.end());
+  std::random_shuffle(deck.begin(), deck.end());
+  std::random_shuffle(deck.begin(), deck.end());
+  
+  std::vector<card> pl1;
+  std::vector<card> pl2;
+  std::vector<card> pl3;
+  
+  std::vector<card> talon;
+  int talon_place = rand() % 20 + 6;
+  talon_place = talon_place - talon_place % 2 + 1;
+  std::cout << "deck.size() = " << deck.size() << std::endl;
+  std::cout << "talon_place = " << talon_place << std::endl;
+  
+  for ( int i = 0; i < 32; i++ )
+  {
+    pl1.push_back(deck.at(i));
+    pl1.push_back(deck.at(++i));
+    if (i == talon_place)
+    {
+      talon.push_back(deck.at(++i));
+      talon.push_back(deck.at(++i));
+    }
+    pl2.push_back(deck.at(++i));
+    pl2.push_back(deck.at(++i));
+    if (i == talon_place)
+    {
+      talon.push_back(deck.at(++i));
+      talon.push_back(deck.at(++i));
+    }
+    pl3.push_back(deck.at(++i));
+    pl3.push_back(deck.at(++i));
+    if (i == talon_place)
+    {
+      talon.push_back(deck.at(++i));
+      talon.push_back(deck.at(++i));
+    }
+  }
+  
+  output("pl1:");     for (auto it = pl1.begin(); it != pl1.end(); ++it)     output((*it).name);
+  output("\npl2:");   for (auto it = pl2.begin(); it != pl2.end(); ++it)     output((*it).name);
+  output("\npl3:");   for (auto it = pl3.begin(); it != pl3.end(); ++it)     output((*it).name);
+  output("\ntalon:"); for (auto it = talon.begin(); it != talon.end(); ++it) output((*it).name);
+  
+  rearrangement(std::ref(pl1));
+  rearrangement(std::ref(pl2));
+  rearrangement(std::ref(pl3));
+  
+  output("\n\nRearrangemented:\n\n");  
+  output("pl1:");     for (auto it = pl1.begin(); it != pl1.end(); ++it)     output((*it).name);
+  output("\npl2:");   for (auto it = pl2.begin(); it != pl2.end(); ++it)     output((*it).name);
+  output("\npl3:");   for (auto it = pl3.begin(); it != pl3.end(); ++it)     output((*it).name);
+}
+
+void rearrangement(std::vector<card> &hand)
+{
+  std::vector<int> numbers;
+  for (auto it = hand.begin(); it != hand.end(); ++it)
+    numbers.push_back((*it).number);
+  std::sort(numbers.begin(), numbers.end());
+  for (auto nit = numbers.begin(); nit != numbers.end(); ++nit)
+  {
+    for (auto it = hand.begin(); it != hand.end(); ++it)
+    {
+      if ((*it).number == (*nit))
+      {
+        std::swap(hand.at(it - hand.begin()), hand.at(nit - numbers.begin()));
+        break;
+      }
+    }
+  }
+}
+
 
 std::string get_client_id(std::string message)
 {
@@ -338,13 +451,13 @@ std::string get_head(std::string message)
 }
 
 
-void output (std::stringstream ss, Updater &updater)
+void output (std::stringstream ss)
 {
   std::cout << ss.str() << std::endl;
   updater.send_message_slot(QString::fromStdString(ss.str()));
 }
 
-void output (std::string string, Updater &updater)
+void output (std::string string)
 {
   std::cout << string << std::endl;
   updater.send_message_slot(QString::fromStdString(string));

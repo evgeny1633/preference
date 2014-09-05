@@ -102,7 +102,7 @@ int main(int argc, char* argv[])
       while(true)
       {
          size_t reply_length = boost::asio::read(socket,boost::asio::buffer(reply, request_length));
-         std::cout << "Reply is: " << reply << std::endl;
+         std::cout << "Server sent: \"" << reply << "\"" << std::endl;
       }
    }
    catch (std::exception& e)
