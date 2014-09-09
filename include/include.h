@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <thread>
+#include <mutex>          // std::mutex
 #include <utility>
 #include <sstream>
 #include <stdlib.h>     /* srand, rand */

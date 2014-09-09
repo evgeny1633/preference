@@ -18,6 +18,8 @@ struct client_list
   std::vector <tcp::socket> sockets;
 } clients;  //make it global 
 
+std::mutex clients_mutex; // std::lock_guard<std::mutex> lock(clients_mutex);
+
 Updater updater;
 
 // template<class TYPE>
@@ -42,8 +44,10 @@ void session(int inner_number)
 {
 //   std::cout << "session __LINE__ = " << __LINE__ << std::endl;
   std::cout << "inner_number = " << inner_number << std::endl;
+  std::unique_lock<std::mutex> session_lock(clients_mutex);
   std::cout << "clients.ids.size() = " << clients.ids.size() << std::endl;
   int client_id = clients.ids.at(inner_number);
+  session_lock.unlock();
   std::stringstream ss;
   std::string message;
   ss.str("");
@@ -55,7 +59,10 @@ void session(int inner_number)
       char data[max_buffer_length] = {};
       boost::system::error_code error;
       std::cout << "session __LINE__ = " << __LINE__ << std::endl;
+      session_lock.lock();
+      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
       _sock_.read_some(boost::asio::buffer(data), error); //read message
+      session_lock.unlock();
       if (error == boost::asio::error::eof)
       {
         std::cout << "session: break is here" << std::endl;
@@ -73,27 +80,30 @@ void session(int inner_number)
       updater.send_message_slot(QString::fromStdString(message));
       std::strcpy (data, ss.str().c_str());
       iffunction(std::ref(_sock_), message);
+      session_lock.lock();
       boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
+      session_lock.unlock();
     }
   }
   catch (std::exception& e)
   {
+    std::cout << "session __LINE__ = " << __LINE__ << std::endl;
     std::cerr << "Exception in thread: " << e.what() << "\n";
   }
 }
 
-// void iffunction(char input_message)
 void iffunction(tcp::socket& sock, std::string &input_message)
 {
-   std::string message = input_message;
-   char data[max_buffer_length] = {};
-   std::string client_id = get_client_id(message);
-   std::string head      = get_head(message);
-   std::strcpy (data, input_message.c_str());
-   boost::asio::write(sock, boost::asio::buffer(data, max_buffer_length));    //send message back to client
-   std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
+//   std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
+  std::string message = input_message;
+  char data[max_buffer_length] = {};
+  std::string client_id = get_client_id(message);
+  std::string head      = get_head(message);
+  std::strcpy (data, input_message.c_str());
+  boost::asio::write(sock, boost::asio::buffer(data, max_buffer_length));    //send message back to client
+   
 
-   std::vector<std::string> block;
+  std::vector<std::string> block;
    /*
 //    input_message = head;
    for ( int i = 0; i < 2; i++ )   //10 -- there should be some sane variable, we'll think about this...this is number of blocks
@@ -208,6 +218,7 @@ void server(boost::asio::io_service &io_service, unsigned short port)
   std::cout << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
   std::string message;
   std::stringstream ss;
+  std::unique_lock<std::mutex> server_lock(clients_mutex, std::defer_lock);
   bool reconnected;
   int id;
   int inner_number;
@@ -234,6 +245,7 @@ void server(boost::asio::io_service &io_service, unsigned short port)
       reconnected = false;
       id = get_int_client_id(message);
       std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+      server_lock.lock();
       for (auto iterator = clients.ids.begin(); iterator != clients.ids.end(); ++iterator)
       {
         if (id == (*iterator))
@@ -251,6 +263,7 @@ void server(boost::asio::io_service &io_service, unsigned short port)
         inner_number = clients.ids.size() - 1;
       }
       std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+      server_lock.unlock();
     }
     
     std::cout << "server __LINE__ = " << __LINE__ << std::endl;
@@ -297,7 +310,9 @@ void test_message_sender(int inner_number, std::string message, bool test)
         message = ss.str();
       }
       std::strcpy (data, message.c_str());
+      clients_mutex.lock();
       boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
+      clients_mutex.unlock();
       std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.ids.at(inner_number) << std::endl;
     }
     catch (std::exception& e)
@@ -314,6 +329,7 @@ void message_sender(int inner_number, std::string message)
   try
   {
     std::strcpy (data, message.c_str());
+    std::lock_guard<std::mutex> sender_lock(clients_mutex);
     boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
     std::cout << "Message \"" << data << "\" sent to client with id " << clients.ids.at(inner_number) << std::endl;
   }
@@ -330,6 +346,21 @@ void distribution()
   card current_card;
   for ( int i = 0; i < 32; i++ )
   {
+    if ( i % 8 == 0 ) current_card.value = "7 ";
+    if ( i % 8 == 1 ) current_card.value = "8 ";
+    if ( i % 8 == 2 ) current_card.value = "9 ";
+    if ( i % 8 == 3 ) current_card.value = "10";
+    if ( i % 8 == 4 ) current_card.value = "J ";
+    if ( i % 8 == 5 ) current_card.value = "Q ";
+    if ( i % 8 == 6 ) current_card.value = "K ";
+    if ( i % 8 == 7 ) current_card.value = "A ";
+    
+    if ( i < 8  )            current_card.suit = "♠";
+    if ( i >= 8  && i < 16 ) current_card.suit = "♣";
+    if ( i >= 16 && i < 24 ) current_card.suit = "♦";
+    if ( i >= 24 )           current_card.suit = "♥";
+    
+    /*
     if ( i % 8 == 0 ) current_card.value = "seven";
     if ( i % 8 == 1 ) current_card.value = "eight";
     if ( i % 8 == 2 ) current_card.value = "nine";
@@ -343,9 +374,11 @@ void distribution()
     if ( i >= 8  && i < 16 ) current_card.suit = "clubs";
     if ( i >= 16 && i < 24 ) current_card.suit = "diamonds";
     if ( i >= 24 )           current_card.suit = "hearts";
+     */
     
     current_card.number = i;
-    current_card.name   = current_card.value + " of " + current_card.suit;
+    current_card.name   = current_card.value + current_card.suit;
+//     current_card.name   = current_card.value + " of " + current_card.suit;
     
     deck.push_back(current_card);
   }
@@ -360,9 +393,7 @@ void distribution()
   
   std::vector<card> talon;
   int talon_place = rand() % 20 + 6;
-  talon_place = talon_place - talon_place % 2 + 1;
-  std::cout << "deck.size() = " << deck.size() << std::endl;
-  std::cout << "talon_place = " << talon_place << std::endl;
+  talon_place = talon_place - talon_place % 2 + 1; //make it odd 
   
   for ( int i = 0; i < 32; i++ )
   {
@@ -389,11 +420,19 @@ void distribution()
     }
   }
   
+  std::stringstream ss;
   output("pl1:");     for (auto it = pl1.begin(); it != pl1.end(); ++it)     output((*it).name);
   output("\npl2:");   for (auto it = pl2.begin(); it != pl2.end(); ++it)     output((*it).name);
   output("\npl3:");   for (auto it = pl3.begin(); it != pl3.end(); ++it)     output((*it).name);
   output("\ntalon:"); for (auto it = talon.begin(); it != talon.end(); ++it) output((*it).name);
-  
+  /*
+  output("pl1:");     ss.str(""); for (auto it = pl1.begin(); it != pl1.end(); ++it)     ss << (*it).suit;  output(ss.str().c_str());
+                      ss.str(""); for (auto it = pl1.begin(); it != pl1.end(); ++it)     ss << (*it).value; output(ss.str().c_str());
+  output("\npl2:");   ss.str(""); for (auto it = pl2.begin(); it != pl2.end(); ++it)     ss << (*it).suit;  output(ss.str().c_str());
+                      ss.str(""); for (auto it = pl2.begin(); it != pl2.end(); ++it)     ss << (*it).value; output(ss.str().c_str());
+  output("\npl3:");   ss.str(""); for (auto it = pl3.begin(); it != pl3.end(); ++it)     ss << (*it).suit;  output(ss.str().c_str());
+                      ss.str(""); for (auto it = pl3.begin(); it != pl3.end(); ++it)     ss << (*it).value; output(ss.str().c_str());
+  output("\ntalon:"); ss.str(""); for (auto it = talon.begin(); it != talon.end(); ++it) output((*it).name);*/
   rearrangement(std::ref(pl1));
   rearrangement(std::ref(pl2));
   rearrangement(std::ref(pl3));
@@ -402,6 +441,13 @@ void distribution()
   output("pl1:");     for (auto it = pl1.begin(); it != pl1.end(); ++it)     output((*it).name);
   output("\npl2:");   for (auto it = pl2.begin(); it != pl2.end(); ++it)     output((*it).name);
   output("\npl3:");   for (auto it = pl3.begin(); it != pl3.end(); ++it)     output((*it).name);
+  output("\ntalon:"); for (auto it = talon.begin(); it != talon.end(); ++it) output((*it).name);
+}
+
+void current_bribe()
+{
+ 
+  
 }
 
 
