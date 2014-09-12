@@ -28,9 +28,9 @@
 
 #include <cstring>
 
-#define _BLOCK_SIZE_ 16
-#define _HEAD_LENGTH_ 9
-#define _ID_LENGTH_ 4
+#define _BLOCK_LENGTH_ 16
+#define _HEAD_LENGTH_ _BLOCK_LENGTH_  // 16
+#define _ID_LENGTH_ _BLOCK_LENGTH_    // 4
 #define _EMPTY_SYMBOL_ '_'
 
 

@@ -11,6 +11,7 @@
 #define _CLIENT_
 
 #include "../include/include.h"
+#include "../include/common_functions.cpp"
 
 using boost::asio::ip::tcp;
 
@@ -53,6 +54,7 @@ int main(int argc, char* argv[])
    std::string head; 
    std::string body;
    std::string client_id;
+   std::string string;
 //    stringstream << "00" << int_client_id;
 //    client_id = stringstream.str();
 
@@ -79,12 +81,10 @@ int main(int argc, char* argv[])
 
       tcp::socket socket(io_service);
       tcp::resolver resolver(io_service);
+//       std::strcpy(argv[1], "localhost");
       boost::asio::connect(socket, resolver.resolve({argv[1], argv[2]}));
 
-//       std::cout << "Enter message: ";
       char request[max_buffer_length];
-//       std::cin.getline(request, max_buffer_length);
-//      std::strcpy(request, "++++++++++");
       stringstream.str("");
       stringstream << client_id << head;
 //       request = stringstream.str().c_str();
@@ -102,7 +102,14 @@ int main(int argc, char* argv[])
       while(true)
       {
          size_t reply_length = boost::asio::read(socket,boost::asio::buffer(reply, request_length));
+         reply_length++;
          std::cout << "Server sent: \"" << reply << "\"" << std::endl;
+//          string = reply;
+         if ( get_head ((std::string)reply) == "alive" )
+         {
+           request_length = std::strlen(reply);
+           boost::asio::write(socket, boost::asio::buffer(reply, request_length));
+         }
       }
    }
    catch (std::exception& e)
@@ -113,7 +120,7 @@ int main(int argc, char* argv[])
    return 0;
 }
 
-
+/*
 std::string make_head(std::string head)
 {
    head.resize (_HEAD_LENGTH_,_EMPTY_SYMBOL_);
@@ -144,4 +151,4 @@ std::string make_message(int int_client_id, std::string head)
       ss << _EMPTY_SYMBOL_;
    
    return ss.str();
-}
+}*/
