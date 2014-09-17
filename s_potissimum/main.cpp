@@ -1,13 +1,16 @@
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
+#ifdef __QT__
+#include <QApplication>
+#include <QThread>
 #include "widget.h"
 #include "log.h"
 #include "../include/updater.h"
+#endif
+
 #include "../include/include.h"
 #include "../include/common_functions.cpp"
-#include <QApplication>
-#include <QThread>
 
 #define _sock_ (clients.socket.at(inner_number))
 #define _id_ (clients.id.at(inner_number))
@@ -27,7 +30,9 @@ std::vector <int> active_players //;
 
 std::mutex clients_mutex; // std::lock_guard<std::mutex> lock(clients_mutex);
 
+#ifdef __QT__
 Updater updater;
+#endif
 
 // template<class TYPE>
 // void output (TYPE data, Updater &updater);
@@ -35,7 +40,7 @@ void test_message_sender(int inner_number = 0, std::string message = "", bool te
 void message_sender(int inner_number, std::string message);
 void output (std::stringstream ss);
 void output (std::string string);
-void append_text_box(QTextEdit *textBox, std::string message);
+// void append_text_box(QTextEdit *textBox, std::string message);
 void session(int inner_number);
 void server(boost::asio::io_service &io_service, unsigned short port);
 void iffunction(int inner_number, std::string &input_message);
@@ -81,7 +86,9 @@ void session(int inner_number)
       ss.str("");      ss << "The original message was \"" << data << "\"";  std::cout << ss.str().c_str() << std::endl;
       message = data;
 
+      #ifdef __QT__
       updater.send_message_slot(QString::fromStdString(message));
+      #endif
       std::strcpy (data, ss.str().c_str());
       std::cout << "session __LINE__ = " << __LINE__ << std::endl;
       iffunction(inner_number, message);
@@ -456,13 +463,17 @@ void game_cycle()
 void output (std::stringstream ss)
 {
   std::cout << ss.str() << std::endl;
+  #ifdef __QT__
   updater.send_message_slot(QString::fromStdString(ss.str()));
+  #endif
 }
 
 void output (std::string string)
 {
   std::cout << string << std::endl;
+  #ifdef __QT__
   updater.send_message_slot(QString::fromStdString(string));
+  #endif
 }
 
 /*
@@ -476,12 +487,14 @@ void output (std::string string)
 
 int main(int argc, char *argv[])
 {
+  #ifdef __QT__
   QApplication a(argc, argv);
   Widget w;
   //w.show();
   Log log;
   
   QObject::connect(&updater, SIGNAL(send_message_signal(QString)), &log, SLOT(receive_message(QString)));
+  #endif
   
   /*
 //   Log log;
@@ -514,7 +527,9 @@ int main(int argc, char *argv[])
     boost::asio::io_service io_service;
     //start the server
     std::thread server_thread(server, boost::ref(io_service), std::atoi(argv[1]));//.detach();
+    #ifdef __QT__
     a.exec(); //oh god this is mandatory. nobody told me that this shit is called main thread. stupid qt, i hate it. at last this works now.
+    #endif
     server_thread.join();
   }
   catch (std::exception& e)

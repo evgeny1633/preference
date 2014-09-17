@@ -2,6 +2,8 @@
 #ifndef _INCLUDE_FILE_
 
 #define _INCLUDE_FILE_
+#define __QT__
+#undef __QT__
 
 #include <cstdlib>
 #include <iostream>
@@ -12,10 +14,12 @@
 #include <stdlib.h>     /* srand, rand */
 #include <time.h>       /* time */
 #include <algorithm>    /* std::random_shuffle */
+#include <cstring>
 
 #include <boost/asio.hpp>
 #include <boost/ref.hpp>
 
+#ifdef __QT__
 #ifndef _CLIENT_
 #include <QWidget>
 #include <QApplication>
@@ -25,8 +29,7 @@
 #include "widget.h"
 #include "updater.h"
 #endif
-
-#include <cstring>
+#endif
 
 #define _BLOCK_LENGTH_ 16
 #define _HEAD_LENGTH_ _BLOCK_LENGTH_  // 16
