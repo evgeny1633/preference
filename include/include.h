@@ -12,11 +12,14 @@
 #include <stdlib.h>     /* srand, rand */
 #include <time.h>       /* time */
 #include <algorithm>    /* std::random_shuffle */
+#include <unistd.h>
 
 #include <boost/asio.hpp>
 #include <boost/ref.hpp>
 
 #ifndef _CLIENT_
+#include <QThread>
+
 #include <QWidget>
 #include <QApplication>
 #include <QTextEdit>
@@ -24,6 +27,7 @@
 
 #include "widget.h"
 #include "updater.h"
+#include "log.h"
 #endif
 
 #include <cstring>
@@ -35,6 +39,8 @@
 
 
 const int max_buffer_length = 1024;
+
+#include "common_functions.cpp"
 
 
 

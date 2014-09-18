@@ -46,6 +46,7 @@ void cin_sender(boost::asio::ip::tcp::socket& sock)
   }
 }
 
+
 void chat_sender(char* host, char* port, int client_id = 18)
 {
   std::string message;
@@ -130,8 +131,9 @@ int main(int argc, char* argv[])
     request_length = max_buffer_length;
 //     std::thread(cin_sender, std::ref(socket)).detach(); 
 //     std::thread(chat_sender, argv[1], argv[2]).detach(); 
-    char* host = argv[1];
-    std::thread([]{ chat_sender(host, argv[2]);}).detach(); 
+//     char* host = argv[1];
+//     std::thread chat_sender_thread(chat_sender, argv[1], argv[2], 18); 
+    std::thread ([]{chat_sender(argv[1], argv[2], 18);}).detach(); 
 
     char reply[max_buffer_length];
     while(true)
@@ -153,11 +155,13 @@ int main(int argc, char* argv[])
         std::cerr << "get_head exception: " << e.what() << "\n";
       }
     }
+//     chat_sender_thread.join();
   }
   catch (std::exception& e)
   {
     std::cerr << "Exception: " << e.what() << "\n";
   }
+  
 
   return 0;
 }

@@ -1,13 +1,7 @@
-#include <iostream>
-#include <sstream>
-#include <unistd.h>
-#include "widget.h"
-#include "log.h"
-#include "../include/updater.h"
+
+
 #include "../include/include.h"
-#include "../include/common_functions.cpp"
-#include <QApplication>
-#include <QThread>
+// #include "../include/common_functions.cpp"
 
 #define _sock_ (clients.socket.at(inner_number))
 #define _id_ (clients.id.at(inner_number))
