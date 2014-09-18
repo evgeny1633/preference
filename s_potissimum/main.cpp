@@ -22,8 +22,7 @@ struct clients_list
   std::vector <int> version;
 } clients;
 
-std::vector <int> active_players //;
-= {0, 1, 2};
+std::vector <int> active_players /*= {0, 1, 2}*/ ;
 
 std::mutex clients_mutex; // std::lock_guard<std::mutex> lock(clients_mutex);
 
@@ -33,67 +32,21 @@ Updater updater;
 // void output (TYPE data, Updater &updater);
 void test_message_sender(int inner_number = 0, std::string message = "", bool test = true);
 void message_sender(int inner_number, std::string message);
-void output (std::stringstream ss);
-void output (std::string string);
-void append_text_box(QTextEdit *textBox, std::string message);
 void session(int inner_number);
 void server(boost::asio::io_service &io_service, unsigned short port);
-void iffunction(int inner_number, std::string &input_message);
+// void iffunction(int inner_number, std::string &input_message);
 void deck_distribution();
-// void rearrangement(std::vector<card> &hand);
-int get_int_client_id(std::string message);
-std::string get_client_id(std::string message);
-std::string get_head(std::string message);
 
-
-
-void session(int inner_number)
+void output (std::stringstream &ss)
 {
-//   std::cout << "session __LINE__ = " << __LINE__ << std::endl;
-  std::cout << "inner_number = " << inner_number << std::endl;
-  std::unique_lock<std::mutex> session_lock(clients_mutex);
-//   int client_id = clients.id.at(inner_number);
-  session_lock.unlock();
-  std::stringstream ss;
-  std::string message;
-  ss.str("");
-  try
-  {
-    for (;;) 
-    {
-      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
-      char data[max_buffer_length] = {};
-      boost::system::error_code error;
-      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
-      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
-      _sock_.read_some(boost::asio::buffer(data), error); //read message
-      if (error == boost::asio::error::eof)
-      {
-        std::cout << "session: break is here" << std::endl;
-        break; // Connection closed cleanly by peer.
-      }
-      else if (error)
-      {
-        std::cout << "session: some other error" << std::endl;
-        throw boost::system::system_error(error); // Some other error.
-      }
-         
-      ss.str("");      ss << "The original message was \"" << data << "\"";  std::cout << ss.str().c_str() << std::endl;
-      message = data;
+  std::cout << ss.str() << std::endl;
+  updater.send_message_slot(QString::fromStdString(ss.str()));
+}
 
-      updater.send_message_slot(QString::fromStdString(message));
-      std::strcpy (data, ss.str().c_str());
-      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
-      iffunction(inner_number, message);
-      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
-    }
-  }
-  catch (std::exception& e)
-  {
-    std::cout << "session __LINE__ = " << __LINE__ << std::endl;
-    std::cerr << "Exception in session: " << e.what() << "\n";
-    session_lock.unlock();
-  }
+void output (std::string string)
+{
+  std::cout << string << std::endl;
+  updater.send_message_slot(QString::fromStdString(string));
 }
 
 void iffunction(int inner_number, std::string &input_message)
@@ -153,73 +106,65 @@ void iffunction(int inner_number, std::string &input_message)
 }
 
 
-void server(boost::asio::io_service &io_service, unsigned short port)
+void session(int inner_number)
 {
-//   std::cout << "server __LINE__ = " << __LINE__ << std::endl;
-  std::cout << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-  std::cout << "Server is started " << std::endl;
-  std::cout << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-  std::string message;
+//   std::cout << "session __LINE__ = " << __LINE__ << std::endl;
+  std::cout << "inner_number = " << inner_number << std::endl;
+  std::unique_lock<std::mutex> session_lock(clients_mutex, std::defer_lock);
+//   int client_id = clients.id.at(inner_number);
+//   session_lock.unlock();
   std::stringstream ss;
-  std::unique_lock<std::mutex> server_lock(clients_mutex, std::defer_lock);
-  bool reconnected;
-  int id;
-  int inner_number;
-  std::cout << "server __LINE__ = " << __LINE__ << std::endl;  
-//   deck_distribution();
-  std::cout << "port = " << port << std::endl;
-  tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), port));
-  std::thread([]{ test_message_sender();}).detach();
-  for (;;)
+  std::string message;
+  ss.str("");
+  try
   {
-    tcp::socket sock(io_service);    //open socket
-    std::cout << "server __LINE__ = " << __LINE__ << std::endl;
-    acceptor.accept(sock);           //wait for message
-    
-    char data[max_buffer_length] = {};
-    boost::system::error_code error;
-    std::cout << "server __LINE__ = " << __LINE__ << std::endl;
-    sock.read_some(boost::asio::buffer(data), error); //read message
-    message = data;
-    if (get_head(message) == "alive")
+    for (;;) 
     {
-      reconnected = false;
-      id = get_int_client_id(message);
-      std::cout << "server __LINE__ = " << __LINE__ << std::endl;
-      server_lock.lock();
-      for (auto iterator = clients.id.begin(); iterator != clients.id.end(); ++iterator)
+      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
+      char data[max_buffer_length] = {};
+      boost::system::error_code error;
+      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
+      session_lock.lock();
+      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
+      _sock_.read_some(boost::asio::buffer(data), error); //read message
+      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
+      session_lock.unlock();
+      if (error == boost::asio::error::eof)
       {
-        if (id == (*iterator))
-        {
-          ss.str(""); ss << "Client # " << id << " reconnected\n"; output(ss.str());
-          reconnected = true;
-          inner_number = iterator - clients.id.begin();
-          clients.socket.at(inner_number) = std::move(sock);
-        }
+        std::cout << "session: break is here" << std::endl;
+        break; // Connection closed cleanly by peer.
       }
-      if (!reconnected)
+      else if (error)
       {
-        clients.id.push_back(id);
-        clients.socket.push_back(std::move(sock));
-        inner_number = clients.id.size() - 1;
+        std::cout << "session: some other error" << std::endl;
+        throw boost::system::system_error(error); // Some other error.
       }
-      std::cout << "server __LINE__ = " << __LINE__ << std::endl;
-      server_lock.unlock();
+         
+      ss.str("");      ss << "The original message was \"" << data << "\"";  std::cout << ss.str().c_str() << std::endl;
+      message = data;
+
+      updater.send_message_slot(QString::fromStdString(message));
+      std::strcpy (data, ss.str().c_str());
+      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
+      iffunction(inner_number, message);
+      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
     }
-    
-    std::cout << "server __LINE__ = " << __LINE__ << std::endl;
-    std::thread(session, inner_number).detach(); //somebody connected; read what they sent to us
-//     std::thread(session, std::ref(clients), std::ref(message), std::ref(updater)).detach(); //somebody connected; read what they sent to us
+  }
+  catch (std::exception& e)
+  {
+    std::cout << "session __LINE__ = " << __LINE__ << std::endl;
+    std::cerr << "Exception in session: " << e.what() << "\n";
+    session_lock.unlock();
   }
 }
 
+
 void test_message_sender(int inner_number, std::string message, bool test)
 {
-  std::cout << "test_sender __LINE__ = " << __LINE__ << std::endl;
+//   std::cout << "test_sender __LINE__ = " << __LINE__ << std::endl;
   std::stringstream ss;
   int check_time = -1;
   int counter = 0;
-  
   for (;;)
   {
     try
@@ -236,7 +181,6 @@ void test_message_sender(int inner_number, std::string message, bool test)
         {
           if ( counter > 10 )
           {
-            
             std::cout << "Sender happly died..." << std::endl;
             break;  //kill it if cycle goes wild
           }
@@ -249,7 +193,10 @@ void test_message_sender(int inner_number, std::string message, bool test)
         counter++;
         
         srand (time(NULL));  // initialize random seed 
-        ss.str(""); ss << (rand() % 80000 + 10000); //rand from 10000 to 90000
+        ss.str(""); 
+//         ss << (rand() % 80000 + 10000); //rand from 10000 to 90000
+        for(int i = 0; i < _ID_LENGTH_ + _HEAD_LENGTH_ + 1; i++) 
+          ss << (rand() % 9); //rand from 0 to 9
         message = ss.str();
       }
       std::strcpy (data, message.c_str());
@@ -274,7 +221,9 @@ void message_sender(int inner_number, std::string message)
   try
   {
     std::strcpy (data, message.c_str());
+    std::cout << "message_sender __LINE__ = " << __LINE__ << std::endl;
     std::lock_guard<std::mutex> sender_lock(clients_mutex);
+    std::cout << "message_sender __LINE__ = " << __LINE__ << std::endl;
     boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
     std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.id.at(inner_number) << std::endl;
   }
@@ -295,12 +244,14 @@ std::string send_receive(int inner_number, std::string message)
     boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
     std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.id.at(inner_number) << std::endl;
     _sock_.read_some(boost::asio::buffer(data), error); //read message
+    message = data;
   }
   catch (std::exception& e)
   {
     std::cerr << "Exception in send_receive: " << e.what() << "\n";
+    message = e.what();
+    
   }
-  message = data;
   return message;
 }
 
@@ -391,15 +342,25 @@ std::vector<int> check_alive()
   std::vector<int> check;
   std::stringstream ss;
   std::string message;
+  std::cout << "check_alive __LINE__ = " << __LINE__ << std::endl;
   for (auto i_active = active_players.begin(); i_active != active_players.end(); ++i_active)
   {
-    ss.str(""); ss << make_client_id(*i_active) << make_head("alive");
+    ss.str(""); ss << make_client_id(clients.id.at(*i_active)) << make_head("alive");
+    std::cout << "check_alive __LINE__ = " << __LINE__ << std::endl;
     message = send_receive(*i_active, ss.str());
+    std::cout << "check_alive __LINE__ = " << __LINE__ << std::endl;
     if (message != ss.str())
       check.push_back(*i_active);
   }
+  std::cout << "check_alive __LINE__ = " << __LINE__ << std::endl;
   return check;
 }
+
+int check_active(int number = 3)
+{
+  return number - active_players.size();
+}
+
 /*
 void distribution()
 {
@@ -429,13 +390,26 @@ void cleaning(){}
 void game_cycle()
 {
   std::vector<int> check;
+  std::stringstream ss;
+  while (check_active() != 0)
+  {
+    ss.str("");  ss << "waiting for " << check_active() << " more clients to play";  output (std::ref(ss));
+    usleep(5e6);
+  }
+  
   while(true)
   {
     do
     {
       check.resize(0);
       check = check_alive();
-      usleep(1000);
+      for (auto iterator : check)
+      {
+        ss.str("");  ss << "waiting for client " << iterator << " to connect";  output (std::ref(ss));
+      }
+      usleep(5e6);
+      ss.str("");  ss << "waiting for " << check.size() << " more clients " << " to connect";  output (std::ref(ss));
+      
     } while ( check.size() == 0 );
     
     deck_distribution();
@@ -453,17 +427,6 @@ void game_cycle()
 }
 
 
-void output (std::stringstream ss)
-{
-  std::cout << ss.str() << std::endl;
-  updater.send_message_slot(QString::fromStdString(ss.str()));
-}
-
-void output (std::string string)
-{
-  std::cout << string << std::endl;
-  updater.send_message_slot(QString::fromStdString(string));
-}
 
 /*
 // void output (TYPE data, Updater &updater)
@@ -473,6 +436,87 @@ void output (std::string string)
 //   updater.send_message_slot(QString::fromStdString(ss.str()));
 // }*/
 
+void server(boost::asio::io_service &io_service, unsigned short port)
+{
+//   std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+  std::cout << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
+  std::cout << "Server is started " << std::endl;
+  std::cout << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
+  std::string message;
+  std::string chat_message;
+  std::stringstream ss;
+  std::unique_lock<std::mutex> server_lock(clients_mutex, std::defer_lock);
+  bool reconnected;
+  int id;
+  int inner_number;
+  std::cout << "server __LINE__ = " << __LINE__ << std::endl;  
+//   deck_distribution();
+  std::cout << "port = " << port << std::endl;
+  tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), port));
+  std::thread([]{ test_message_sender();}).detach();
+  std::thread(game_cycle).detach(); //somebody connected; read what they sent to us
+  for (;;)
+  {
+    tcp::socket sock(io_service);    //open socket
+    std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+    acceptor.accept(sock);           //wait for message
+    
+    char data[max_buffer_length] = {};
+    boost::system::error_code error;
+    std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+    sock.read_some(boost::asio::buffer(data), error); //read message
+    message = data;
+    if (get_head(message) == "alive")
+    {
+      reconnected = false;
+      id = get_int_client_id(message);
+      std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+      server_lock.lock();
+      for (auto iterator = clients.id.begin(); iterator != clients.id.end(); ++iterator)
+      {
+        if (id == (*iterator))
+        {
+          ss.str(""); ss << "Client # " << id << " reconnected\n"; output(ss.str());
+          reconnected = true;
+          inner_number = iterator - clients.id.begin();
+          clients.socket.at(inner_number) = std::move(sock);
+        }
+      }
+      if (!reconnected)
+      {
+        clients.id.push_back(id);
+        clients.socket.push_back(std::move(sock));
+        inner_number = clients.id.size() - 1;
+        active_players.push_back(inner_number);
+      }
+      std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+      server_lock.unlock();
+    }
+    
+    if (get_head(message) == "chat")
+    {
+      ss.str("");
+      ss << "player " << get_client_id(message) << "[" << ctiming() << "]: " << get_chat_message(message);
+      chat_message = ss.str();
+      output(chat_message);
+      for (auto iterator = clients.connected.begin(); iterator != clients.connected.end(); ++iterator)
+      {
+        if (*iterator)
+        {
+          ss.str("");
+          ss << get_client_id(message) << get_head(message) << chat_message;
+          message_sender(iterator - clients.connected.begin(), ss.str());
+        }
+        
+      }
+        
+    }
+    
+    std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+//     std::thread(session, inner_number).detach(); //somebody connected; read what they sent to us
+//     std::thread(session, std::ref(clients), std::ref(message), std::ref(updater)).detach(); //somebody connected; read what they sent to us
+  }
+}
 
 int main(int argc, char *argv[])
 {

@@ -82,6 +82,11 @@ std::string get_block(std::string message, int block_number)
   return block;
 }
 
+std::string get_chat_message(std::string message)
+{
+  return message.substr(_ID_LENGTH_ + _HEAD_LENGTH_, message.size() - (_ID_LENGTH_ + _HEAD_LENGTH_));;
+}
+
 std::vector<card> create_deck(bool long_value = false, bool long_suit  = false)
 {
   std::vector<card> deck;
@@ -135,7 +140,6 @@ std::vector<card> create_deck(bool long_value = false, bool long_suit  = false)
   return deck;
 }
 
-
 void rearrangement(std::vector<card> &hand)
 {
   std::vector<int> numbers;
@@ -160,6 +164,94 @@ void rearrangement(std::vector<int> &hand)
   std::sort(hand.begin(), hand.end());
 }
 
+std::string ctiming(bool cout = false)
+{
+  int day = 29;
+  int month = 10;
+  int year = 2012;
+  long int start;
+  int curday;
+  std::stringstream ss;
+  while(1)
+  {
+    curday = 0;
+    for (int i = 1; i <= month; i++)
+    {
+      if (i == 1)     curday += 0;
+      if (i == 2)     curday += 31;   //jan
+      if (i == 4)     curday += 31;   //mar
+      if (i == 5)     curday += 30;   //apr
+      if (i == 6)     curday += 31;   //may
+      if (i == 7)     curday += 30;   //jun
+      if (i == 8)     curday += 31;   //jul
+      if (i == 9)     curday += 31;   //aug
+      if (i == 10)    curday += 30;   //sep
+      if (i == 11)    curday += 31;   //oct
+      if (i == 12)    curday += 30;   //nov
+
+      if (i == 3 && year%4 == 0)      curday += 29;
+      if (i == 3 && year%4 != 0)      curday += 28;
+    }
+    curday += day;
+    start = time(NULL);
+    start = start - ( 365 * 24 * 3600 * (floor((year - 1970)/4)*3 + (year - 1970)%4) ) - 
+                    ( 366 * 24 * 3600 * floor((year - 1970)/4) ) - curday * 24 * 3600 + 4 * 3600;
+
+    if ( start < 0 )
+    {
+      year--;
+      continue;
+    }
+
+    if( ( floor(start/3600) >= 24 ) || ( day > 31 ) || ( month > 12) )
+    {
+      if ( floor(start/3600) >= 24 )
+      day++;
+      if ( day > 31 )
+      {
+        month++;
+        day = 1;
+      }
+      if ( month > 12)
+      {
+        year++;
+        month = 1;
+      }
+      continue;
+    }
+    break;
+  }
+
+  ss<<"Current time and date\t";
+
+  if( floor(start/3600) < 10 ) ss<<"0"<<floor(start/3600);
+  else                         ss<<floor(start/3600);
+
+  ss<<":";
+
+  if( (start/60)%60 < 10 )     ss<<"0"<<(start/60)%60;
+  else                         ss<<(start/60)%60;
+
+  ss<<":";
+
+  if ((start%60)%60 < 10)      ss<<"0"<<(start%60)%60<<"     ";
+  else                         ss<<(start%60)%60<<"  ";
+
+  if( day < 10 )               ss<<"0"<<day;
+  else                         ss<<day;
+
+  ss<<"-";
+
+  if( month < 10 )             ss<<"0"<<month;
+  else                         ss<<month;
+  
+  ss<<"-"<<year;
+  
+  if (cout)
+    std::cout << ss.str() << std::endl;
+  
+  return ss.str();
+}
 
 
 
