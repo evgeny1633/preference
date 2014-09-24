@@ -1,7 +1,17 @@
-
+#include <iostream>
+#include <sstream>
+#include <unistd.h>
 
 #include "../include/include.h"
-// #include "../include/common_functions.cpp"
+#include "../include/common_functions.cpp"
+
+#ifdef __QT__
+#include <QApplication>
+#include <QThread>
+#include "widget.h"
+#include "log.h"
+#include "../include/updater.h"
+#endif
 
 #define _sock_ (clients.socket.at(inner_number))
 #define _id_ (clients.id.at(inner_number))
@@ -18,13 +28,20 @@ struct clients_list
 
 //inner_number -- number of element in clients vector, everywhere.
 
+#ifdef __QT__
+Updater updater;//class to update log window via QApplication::connect
+#endif
+
 std::vector <int> active_players /*= {0, 1, 2}*/ ;
 std::mutex clients_mutex; // mutex to avoid undefined behavior with clients. some threads can read\write into it simultaniously.
-Updater updater;  //class to update log window via QApplication::connect
 
 // template<class TYPE>
 // void output (TYPE data, Updater &updater);
 void test_message_sender(int inner_number = 0, std::string message = "", bool test = true);
+void message_sender(int inner_number, std::string message);
+void output (std::stringstream ss);
+void output (std::string string);
+// void append_text_box(QTextEdit *textBox, std::string message);
 void message_sender(int inner_number, std::string message); //send message to the client
 void session(int inner_number);
 void server(boost::asio::io_service &io_service, unsigned short port);
@@ -32,17 +49,12 @@ void deck_distribution();
 // void iffunction(int inner_number, std::string &input_message);
 
 //output to cout and to log window
-void output (std::stringstream &ss)
-{
-  std::cout << ss.str() << std::endl;
-  updater.send_message_slot(QString::fromStdString(ss.str()));
-}
-
-//output to cout and to log window
 void output (std::string string)
 {
   std::cout << string << std::endl;
+  #ifdef __QT__
   updater.send_message_slot(QString::fromStdString(string));
+  #endif
 }
 
 //divide message into parts and decide what to do with the message
@@ -139,8 +151,9 @@ void session(int inner_number)
          
       ss.str("");      ss << "The original message was \"" << data << "\"";  std::cout << ss.str().c_str() << std::endl;
       message = data;
-
+      #ifdef __QT__
       updater.send_message_slot(QString::fromStdString(message));
+      #endif
       std::strcpy (data, ss.str().c_str());
       std::cout << "session __LINE__ = " << __LINE__ << std::endl;
       iffunction(inner_number, message);
@@ -299,7 +312,7 @@ void deck_distribution()
     ss.str(""); ss << "\nd_player.at(" << i_d_player - d_player.begin() << "):";// << (*i_d_player);
     output(ss.str());
     for (auto it = (*i_d_player).begin(); it != (*i_d_player).end(); ++it)     
-    { 
+    {
       output((*it).name);
       ss.str(""); ss << make_client_id(active_players.at(i_d_player - d_player.begin())) << make_head("distribution") << make_block((*it).number);
       message_sender(active_players.at(i_d_player - d_player.begin()), ss.str());
@@ -395,7 +408,7 @@ void game_cycle()
   std::stringstream ss;
   while (check_active() != 0)
   {
-    ss.str("");  ss << "waiting for " << check_active() << " more clients to play";  output (std::ref(ss));
+    ss.str("");  ss << "waiting for " << check_active() << " more clients to play";  output (ss.str());
     usleep(5e6);
   }
   
@@ -407,10 +420,10 @@ void game_cycle()
       check = check_alive();
       for (auto iterator : check)
       {
-        ss.str("");  ss << "waiting for client " << iterator << " to connect";  output (std::ref(ss));
+        ss.str("");  ss << "waiting for client " << iterator << " to connect";  output (ss.str());
       }
       usleep(5e6);
-      ss.str("");  ss << "waiting for " << check.size() << " more clients " << " to connect";  output (std::ref(ss));
+      ss.str("");  ss << "waiting for " << check.size() << " more clients " << " to connect";  output (ss.str());
       
     } while ( check.size() == 0 );
     
@@ -427,6 +440,7 @@ void game_cycle()
   
   
 }
+
 
 
 
@@ -523,12 +537,14 @@ void server(boost::asio::io_service &io_service, unsigned short port)
 
 int main(int argc, char *argv[])
 {
+  #ifdef __QT__
   QApplication a(argc, argv);
   Widget w;
   //w.show();
   Log log;
   
   QObject::connect(&updater, SIGNAL(send_message_signal(QString)), &log, SLOT(receive_message(QString)));
+  #endif
   
   /*
 //   Log log;
@@ -557,11 +573,15 @@ int main(int argc, char *argv[])
       std::cerr << "Usage: ./_server <port>\n";
       return 1;
     }
+    #ifdef __QT__
     log.show();
+    #endif
     boost::asio::io_service io_service;
     //start the server
     std::thread server_thread(server, boost::ref(io_service), std::atoi(argv[1]));//.detach();
+    #ifdef __QT__
     a.exec(); //oh god this is mandatory. nobody told me that this shit is called main thread. stupid qt, i hate it. at last this works now.
+    #endif
     server_thread.join();
   }
   catch (std::exception& e)
