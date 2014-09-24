@@ -12,7 +12,8 @@ HEADERS += statistics.h widget.h log.h \
     ../include/include.h \
     ../include/updater.h
 SOURCES += main.cpp statistics.cpp widget.cpp log.cpp \
-    ../include/updater.cpp
+    ../include/updater.cpp \
+    ../include/common_functions.cpp
 RESOURCES += avatars.qrc
 
 FORMS += \

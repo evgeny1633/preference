@@ -18,9 +18,7 @@ using boost::asio::ip::tcp;
 std::string make_head(std::string head);
 std::string make_client_id(int int_client_id);
 
-//enum { max_buffer_length = 1024 };
-// const int max_buffer_length = 1024;
-
+//send message to server directly from cin
 void cin_sender(boost::asio::ip::tcp::socket& sock)
 {
   std::string message;
@@ -46,7 +44,7 @@ void cin_sender(boost::asio::ip::tcp::socket& sock)
   }
 }
 
-
+//send message to server directly from cin
 void chat_sender(char* host, char* port, int client_id = 18)
 {
   std::string message;
@@ -90,7 +88,8 @@ int main(int argc, char* argv[])
   std::string string;
 //    stringstream << "00" << int_client_id;
 //    client_id = stringstream.str();
-
+  char* host = argv[1];
+  char* port = argv[2];
 
   srand (time(NULL));  // initialize random seed: 
 //    int_client_id = (int) (rand() % 10 + 3) ; //range 3-12
@@ -100,8 +99,6 @@ int main(int argc, char* argv[])
   client_id = make_client_id(int_client_id);
   std::cout << "client_id = " << client_id << "\tint_client_id = " << int_client_id << std::endl;
 //    std::cout << "head = \"" << head << "\"" << std::endl;
-//    return 0;
-  
   try
   {
     if (argc != 3)
@@ -130,10 +127,8 @@ int main(int argc, char* argv[])
 
     request_length = max_buffer_length;
 //     std::thread(cin_sender, std::ref(socket)).detach(); 
-//     std::thread(chat_sender, argv[1], argv[2]).detach(); 
-//     char* host = argv[1];
-//     std::thread chat_sender_thread(chat_sender, argv[1], argv[2], 18); 
-    std::thread ([]{chat_sender(argv[1], argv[2], 18);}).detach(); 
+
+    std::thread ([host, port]{chat_sender(host, port);}).detach(); 
 
     char reply[max_buffer_length];
     while(true)

@@ -14,35 +14,38 @@ struct clients_list
   std::vector <bool> connected;
   std::vector <bool> playing;
   std::vector <int> version;
-} clients;
+} clients; //it's impossible to create vector of clients, because it's impossible to declare tcp::socket inside it
+
+//inner_number -- number of element in clients vector, everywhere.
 
 std::vector <int> active_players /*= {0, 1, 2}*/ ;
-
-std::mutex clients_mutex; // std::lock_guard<std::mutex> lock(clients_mutex);
-
-Updater updater;
+std::mutex clients_mutex; // mutex to avoid undefined behavior with clients. some threads can read\write into it simultaniously.
+Updater updater;  //class to update log window via QApplication::connect
 
 // template<class TYPE>
 // void output (TYPE data, Updater &updater);
 void test_message_sender(int inner_number = 0, std::string message = "", bool test = true);
-void message_sender(int inner_number, std::string message);
+void message_sender(int inner_number, std::string message); //send message to the client
 void session(int inner_number);
 void server(boost::asio::io_service &io_service, unsigned short port);
-// void iffunction(int inner_number, std::string &input_message);
 void deck_distribution();
+// void iffunction(int inner_number, std::string &input_message);
 
+//output to cout and to log window
 void output (std::stringstream &ss)
 {
   std::cout << ss.str() << std::endl;
   updater.send_message_slot(QString::fromStdString(ss.str()));
 }
 
+//output to cout and to log window
 void output (std::string string)
 {
   std::cout << string << std::endl;
   updater.send_message_slot(QString::fromStdString(string));
 }
 
+//divide message into parts and decide what to do with the message
 void iffunction(int inner_number, std::string &input_message)
 {
 //   std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
@@ -82,10 +85,10 @@ void iffunction(int inner_number, std::string &input_message)
   }
 
   if ( block.at(1) == "statistics" )  { /* send him statistics */ }
-  if ( block.at(1) == "trade" )       {  }
-  if ( block.at(1) == "game" )        {  }
-  if ( block.at(1) == "offer" )       {  }
-  if ( block.at(1) == "chat" )
+  if ( block.at(1) == "trade"      )  {  }
+  if ( block.at(1) == "game"       )  {  }
+  if ( block.at(1) == "offer"      )  {  }
+  if ( block.at(1) == "chat"       )
   {
     message = message.substr(_ID_LENGTH_ + _HEAD_LENGTH_, message.size() - _ID_LENGTH_ - _HEAD_LENGTH_);
     output (message);   //     chat_outpur(message);
@@ -99,7 +102,7 @@ void iffunction(int inner_number, std::string &input_message)
   std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
 }
 
-
+//probably useless...
 void session(int inner_number)
 {
 //   std::cout << "session __LINE__ = " << __LINE__ << std::endl;
@@ -152,7 +155,7 @@ void session(int inner_number)
   }
 }
 
-
+//send messages from cin directly
 void test_message_sender(int inner_number, std::string message, bool test)
 {
 //   std::cout << "test_sender __LINE__ = " << __LINE__ << std::endl;
@@ -209,6 +212,7 @@ void test_message_sender(int inner_number, std::string message, bool test)
   }
 }
 
+//send message to the client
 void message_sender(int inner_number, std::string message)
 {
   char data[max_buffer_length] = {};      
@@ -227,6 +231,7 @@ void message_sender(int inner_number, std::string message)
   }
 }
 
+//send message and wait for the answer. dangerous, will be fixed.
 std::string send_receive(int inner_number, std::string message)
 {
   char data[max_buffer_length] = {};      
@@ -251,7 +256,7 @@ std::string send_receive(int inner_number, std::string message)
 
 void current_bribe(){}
 
-
+//send cards to the clients
 void deck_distribution()
 {
 //   std::cout << "deck_distribution __LINE__ = " << __LINE__ << std::endl;
@@ -324,6 +329,7 @@ void deck_distribution()
   
 }
 
+//check if certain client is alive
 std::string check_one(int inner_numer)
 {
   std::stringstream ss;
@@ -331,6 +337,7 @@ std::string check_one(int inner_numer)
   return send_receive(inner_numer, ss.str());
 }
 
+//check all active players
 std::vector<int> check_alive()
 {
   std::vector<int> check;
@@ -381,6 +388,7 @@ void offers(){}
 void result(){}
 void cleaning(){}
 
+//main game cycle
 void game_cycle()
 {
   std::vector<int> check;
@@ -430,6 +438,7 @@ void game_cycle()
 //   updater.send_message_slot(QString::fromStdString(ss.str()));
 // }*/
 
+//server can receive and process some certain messages, e.g. chat, alive, active...
 void server(boost::asio::io_service &io_service, unsigned short port)
 {
 //   std::cout << "server __LINE__ = " << __LINE__ << std::endl;
@@ -447,8 +456,8 @@ void server(boost::asio::io_service &io_service, unsigned short port)
 //   deck_distribution();
   std::cout << "port = " << port << std::endl;
   tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), port));
-  std::thread([]{ test_message_sender();}).detach();
-  std::thread(game_cycle).detach(); //somebody connected; read what they sent to us
+  std::thread([]{ test_message_sender();}).detach(); //cin sender
+  std::thread(game_cycle).detach(); 
   for (;;)
   {
     tcp::socket sock(io_service);    //open socket

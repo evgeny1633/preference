@@ -32,6 +32,7 @@
 
 #include <cstring>
 
+//message parts:
 #define _BLOCK_LENGTH_ 16
 #define _HEAD_LENGTH_ _BLOCK_LENGTH_  // 16
 #define _ID_LENGTH_ _BLOCK_LENGTH_    // 4
@@ -40,7 +41,7 @@
 
 const int max_buffer_length = 1024;
 
-#include "common_functions.cpp"
+// #include "common_functions.cpp"
 
 
 

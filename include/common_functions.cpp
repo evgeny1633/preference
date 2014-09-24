@@ -1,7 +1,7 @@
 
+#include "include.h"
 #ifndef _COMMON_FUNCTIONS_
 #define _COMMON_FUNCTIONS_
-#include "include.h"
 
 struct card
 {
@@ -11,6 +11,8 @@ struct card
   std::string name;
 };
 
+//*****************************************************************************************//
+//the following functions withdraw some information from the message or create message of necessary format:
 std::string make_head(std::string head)
 {
    head.resize (_HEAD_LENGTH_,_EMPTY_SYMBOL_);
@@ -86,6 +88,7 @@ std::string get_chat_message(std::string message)
 {
   return message.substr(_ID_LENGTH_ + _HEAD_LENGTH_, message.size() - (_ID_LENGTH_ + _HEAD_LENGTH_));;
 }
+//*****************************************************************************************//
 
 std::vector<card> create_deck(bool long_value = false, bool long_suit  = false)
 {
@@ -140,6 +143,7 @@ std::vector<card> create_deck(bool long_value = false, bool long_suit  = false)
   return deck;
 }
 
+//rearrange the deck
 void rearrangement(std::vector<card> &hand)
 {
   std::vector<int> numbers;
@@ -159,11 +163,13 @@ void rearrangement(std::vector<card> &hand)
   }
 }
 
+//rearrange the deck
 void rearrangement(std::vector<int> &hand)
 {
   std::sort(hand.begin(), hand.end());
 }
 
+//display current time and date
 std::string ctiming(bool cout = false)
 {
   int day = 29;
