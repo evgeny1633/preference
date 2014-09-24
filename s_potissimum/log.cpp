@@ -1,3 +1,4 @@
+// #ifdef __QT__
 #include "log.h"
 #include "ui_log.h"
 #include <iostream>
@@ -47,3 +48,4 @@ Log::~Log()
     delete ui;
 }
 
+// #endif

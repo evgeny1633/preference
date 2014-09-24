@@ -22,5 +22,4 @@ signals:
 private:
     QString message_to_update;
 };
-
 #endif // UPDATER_H

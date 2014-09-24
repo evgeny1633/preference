@@ -1,6 +1,10 @@
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
+
+#include "../include/include.h"
+#include "../include/common_functions.cpp"
+
 #ifdef __QT__
 #include <QApplication>
 #include <QThread>
@@ -8,9 +12,6 @@
 #include "log.h"
 #include "../include/updater.h"
 #endif
-
-#include "../include/include.h"
-#include "../include/common_functions.cpp"
 
 #define _sock_ (clients.socket.at(inner_number))
 #define _id_ (clients.id.at(inner_number))
@@ -42,7 +43,7 @@ void output (std::stringstream ss);
 void output (std::string string);
 // void append_text_box(QTextEdit *textBox, std::string message);
 void message_sender(int inner_number, std::string message); //send message to the client
-// void session(int inner_number);
+void session(int inner_number);
 void server(boost::asio::io_service &io_service, unsigned short port);
 void deck_distribution();
 // void iffunction(int inner_number, std::string &input_message);
@@ -51,7 +52,9 @@ void deck_distribution();
 void output (std::string string)
 {
   std::cout << string << std::endl;
+  #ifdef __QT__
   updater.send_message_slot(QString::fromStdString(string));
+  #endif
 }
 
 //divide message into parts and decide what to do with the message
@@ -148,8 +151,9 @@ void session(int inner_number)
          
       ss.str("");      ss << "The original message was \"" << data << "\"";  std::cout << ss.str().c_str() << std::endl;
       message = data;
-
+      #ifdef __QT__
       updater.send_message_slot(QString::fromStdString(message));
+      #endif
       std::strcpy (data, ss.str().c_str());
       std::cout << "session __LINE__ = " << __LINE__ << std::endl;
       iffunction(inner_number, message);
@@ -437,6 +441,9 @@ void game_cycle()
   
 }
 
+
+
+
 /*
 // void output (TYPE data, Updater &updater)
 // {
@@ -566,7 +573,9 @@ int main(int argc, char *argv[])
       std::cerr << "Usage: ./_server <port>\n";
       return 1;
     }
+    #ifdef __QT__
     log.show();
+    #endif
     boost::asio::io_service io_service;
     //start the server
     std::thread server_thread(server, boost::ref(io_service), std::atoi(argv[1]));//.detach();

@@ -3,7 +3,7 @@
 #define _INCLUDE_FILE_
 
 #define __QT__
-// #undef __QT__
+#undef __QT__
 
 #include <cstdlib>
 #include <iostream>
@@ -23,15 +23,14 @@
 #ifdef __QT__
 #ifndef _CLIENT_
 #include <QThread>
-
 #include <QWidget>
 #include <QApplication>
 #include <QTextEdit>
 #include <QObject>
 
-#include "widget.h"
-#include "updater.h"
-#include "log.h"
+// #include "widget.h"
+// #include "updater.h"
+// #include "log.h"
 #endif
 #endif
 

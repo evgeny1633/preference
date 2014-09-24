@@ -172,9 +172,9 @@ void rearrangement(std::vector<int> &hand)
 //display current time and date
 std::string ctiming(bool cout = false)
 {
-  int day = 29;
-  int month = 10;
-  int year = 2012;
+  int day = 20;
+  int month = 9;
+  int year = 2014;
   long int start;
   int curday;
   std::stringstream ss;
@@ -228,7 +228,7 @@ std::string ctiming(bool cout = false)
     break;
   }
 
-  ss<<"Current time and date\t";
+//   ss<<"Current time and date\t";
 
   if( floor(start/3600) < 10 ) ss<<"0"<<floor(start/3600);
   else                         ss<<floor(start/3600);
