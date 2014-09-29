@@ -2,13 +2,15 @@
 #ifndef _INCLUDE_FILE_
 #define _INCLUDE_FILE_
 
+#define __std11__
+#undef __std11__
+
 #define __QT__
 #undef __QT__
 
 #include <cstdlib>
 #include <iostream>
-#include <thread>
-#include <mutex>          // std::mutex
+
 #include <utility>
 #include <sstream>
 #include <stdlib.h>     /* srand, rand */
@@ -16,6 +18,15 @@
 #include <algorithm>    /* std::random_shuffle */
 #include <cstring>
 #include <unistd.h>
+
+#ifdef __std11__
+#include <thread>
+#include <mutex>          // std::mutex
+#else
+#include <boost/move/move.hpp>
+#include <boost/thread.hpp>
+#include <boost/thread/mutex.hpp>
+#endif
 
 #include <boost/asio.hpp>
 #include <boost/ref.hpp>

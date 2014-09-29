@@ -11,6 +11,7 @@ struct card
   std::string name;
 };
 
+
 //*****************************************************************************************//
 //the following functions withdraw some information from the message or create message of necessary format:
 std::string make_head(std::string head)
@@ -147,12 +148,28 @@ std::vector<card> create_deck(bool long_value = false, bool long_suit  = false)
 void rearrangement(std::vector<card> &hand)
 {
   std::vector<int> numbers;
+  
+  #ifdef __std11__
   for (auto it = hand.begin(); it != hand.end(); ++it)
-    numbers.push_back((*it).number);
-  std::sort(numbers.begin(), numbers.end());
-  for (auto nit = numbers.begin(); nit != numbers.end(); ++nit)
+  #else
+  for (std::vector<card>::const_iterator it = hand.begin(); it != hand.end(); ++it)
+  #endif
   {
+    numbers.push_back((*it).number);
+  }
+  std::sort(numbers.begin(), numbers.end());
+  
+  #ifdef __std11__
+  for (auto nit = numbers.begin(); nit != numbers.end(); ++nit)
+  #else
+  for (std::vector<int>::const_iterator nit = numbers.begin(); nit != numbers.end(); ++nit)
+  #endif
+  {
+    #ifdef __std11__
     for (auto it = hand.begin(); it != hand.end(); ++it)
+    #else
+    for (std::vector<card>::const_iterator it = hand.begin(); it != hand.end(); ++it)
+    #endif
     {
       if ((*it).number == (*nit))
       {

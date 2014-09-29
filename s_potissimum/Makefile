@@ -1,6 +1,6 @@
 CC=g++
-CFLAGS=-c -Wall -std=c++11 
-LDFLAGS=-lboost_system -lboost_thread -lpthread -std=c++11
+CFLAGS=-c -Wall -I/home/kondratyuk/programms/boost_1_56_0 -L/home/kondratyuk/programms/boost_1_56_0/stage/lib
+LDFLAGS=-lboost_system -lboost_thread -lpthread 
 SOURCES=main.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=server
