@@ -1,19 +1,13 @@
-//
-// blocking_tcp_echo_client.cpp
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//
-// Copyright (c) 2003-2013 Christopher M. Kohlhoff (chris at kohlhoff dot com)
-//
-// Distributed under the Boost Software License, Version 1.0. (See accompanying
-// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
-//
 
 #define _CLIENT_
 
+// #include <signal.h>
 #include "../include/include.h"
 #include "../include/common_functions.cpp"
 
-using boost::asio::ip::tcp;
+#define _sock_ (socket_for_read.at(0))
+
+std::vector <boost::asio::ip::tcp::socket> socket_for_read;
 
 std::string make_head(std::string head);
 std::string make_client_id(int int_client_id);
@@ -45,7 +39,7 @@ void cin_sender(boost::asio::ip::tcp::socket& sock)
 }
 
 //send message to server directly from cin
-void chat_sender(char* host, char* port, int client_id = 18)
+void chat_sender(char* host, char* port, int client_id)
 {
   std::string message;
   std::stringstream ss;
@@ -55,8 +49,8 @@ void chat_sender(char* host, char* port, int client_id = 18)
     {
       char data[max_buffer_length] = {};
       boost::asio::io_service io_service;
-      tcp::socket socket(io_service);
-      tcp::resolver resolver(io_service);
+      boost::asio::ip::tcp::socket socket(io_service);
+      boost::asio::ip::tcp::resolver resolver(io_service);
       boost::asio::connect(socket, resolver.resolve({host, port}));
 
       std::cout << "Feel free to enter message here..." << std::endl;
@@ -76,10 +70,24 @@ void chat_sender(char* host, char* port, int client_id = 18)
     std::cerr << "Exception in chat_sender: " << e.what() << "\n";
   }
 }
-
+/*
+void sig_handler(int sig)
+{
+  if (sig == SIGSEGV)
+  {
+    std::cout << "give out a backtrace or something...\n";
+  }
+  if (sig == SIGTERM)
+  {
+    std::cout << "terminating...\n";
+  }
+  else
+    std::cout << "wasn't expecting that!\n";
+}*/
 
 int main(int argc, char* argv[])
 {
+//   signal(SIGTERM, sig_handler);
   int int_client_id;
   std::stringstream stringstream;
   std::string head; 
@@ -92,8 +100,8 @@ int main(int argc, char* argv[])
   char* port = argv[2];
 
   srand (time(NULL));  // initialize random seed: 
-//    int_client_id = (int) (rand() % 10 + 3) ; //range 3-12
-  int_client_id = (int) 18; //range 3-12
+//   int_client_id = 18; 
+  int_client_id = (int) (rand() % 30 + 3) ; //range 3-32
   head = "alive";
   head = make_head(head);
   client_id = make_client_id(int_client_id);
@@ -107,12 +115,11 @@ int main(int argc, char* argv[])
       return 1;
     }
 
-    boost::asio::io_service io_service;
-
-    tcp::socket socket(io_service);
-    tcp::resolver resolver(io_service);
 //       std::strcpy(argv[1], "localhost");
-    boost::asio::connect(socket, resolver.resolve({argv[1], argv[2]}));
+    boost::asio::io_service io_service;
+    boost::asio::ip::tcp::socket socket(io_service);
+    boost::asio::ip::tcp::resolver resolver(io_service);
+    boost::asio::connect(socket, resolver.resolve({host, port}));
 
     char request[max_buffer_length];
     stringstream.str("");
@@ -122,27 +129,29 @@ int main(int argc, char* argv[])
 //       std::cout << "stringstream.str().c_str() = " << stringstream.str().c_str() << std::endl;
     stringstream >> request;
     std::cout << "request = \""<< request << "\"" << std::endl;
-    size_t request_length = std::strlen(request);
-    boost::asio::write(socket, boost::asio::buffer(request, request_length));
+    boost::asio::write(socket, boost::asio::buffer(request, (size_t)std::strlen(request)));
 
-    request_length = max_buffer_length;
 //     std::thread(cin_sender, std::ref(socket)).detach(); 
-
-    std::thread ([host, port]{chat_sender(host, port);}).detach(); 
+    std::thread ([host, port, int_client_id]{chat_sender(host, port, int_client_id);}).detach(); 
+    
 
     char reply[max_buffer_length];
     while(true)
     {
-      size_t reply_length = boost::asio::read(socket,boost::asio::buffer(reply, request_length));
-      reply_length++;
-      std::cout << "Server sent: \"" << reply << "\"" << std::endl;
-//          string = reply;
+      size_t reply_length = boost::asio::read(socket,boost::asio::buffer(reply, max_buffer_length));
       try
       {
+        if ( get_head( (std::string)reply ) == "chat" )
+        {
+          std::cout << get_chat_message((std::string)reply) << std::endl;
+        }
         if ( get_head ((std::string)reply) == "alive" )
         {
-          request_length = std::strlen(reply);
-          boost::asio::write(socket, boost::asio::buffer(reply, request_length));
+          boost::asio::write(socket, boost::asio::buffer(reply, (size_t)std::strlen(reply)));
+        }
+        else
+        {
+          std::cout << "Server sent: \"" << reply << "\"" << std::endl;
         }
       }
       catch (std::exception& e)

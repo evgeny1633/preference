@@ -60,9 +60,17 @@ std::string make_message(int int_client_id, std::string head)
 
 std::string get_client_id(std::string message)
 {
-   std::string client_id = message.substr(0, _ID_LENGTH_);
-   client_id = message.substr(0, std::min(_ID_LENGTH_, (int)(client_id.find_first_of(_EMPTY_SYMBOL_))));
-   return client_id;  
+  try
+  {
+    std::string client_id = message.substr(0, _ID_LENGTH_);
+    client_id = message.substr(0, std::min(_ID_LENGTH_, (int)(client_id.find_first_of(_EMPTY_SYMBOL_))));
+    return client_id;
+  }
+  catch (std::exception& e)
+  {
+    std::cerr << "Exception in get_client_id: " << e.what() << "\n";
+    return make_client_id(-1);
+  }
 }
 
 int get_int_client_id(std::string message)
@@ -72,21 +80,46 @@ int get_int_client_id(std::string message)
 
 std::string get_head(std::string message)
 {
-   std::string head = message.substr(_ID_LENGTH_, _HEAD_LENGTH_);
-   head = head.substr(0, std::min(_HEAD_LENGTH_, (int)(head.find_first_of(_EMPTY_SYMBOL_))));
-   return head;  
+  try 
+  {
+    std::string head = message.substr(_ID_LENGTH_, _HEAD_LENGTH_);
+    head = head.substr(0, std::min(_HEAD_LENGTH_, (int)(head.find_first_of(_EMPTY_SYMBOL_))));
+    return head;  
+  }
+  catch (std::exception& e)
+  {
+    std::cerr << "Exception in get_head: " << e.what() << "\n";
+    return make_head((std::string)"error");
+  }
 }
 
 std::string get_block(std::string message, int block_number)
 {
-  std::string block = message.substr(_ID_LENGTH_ + _HEAD_LENGTH_ + _BLOCK_LENGTH_ * (block_number - 2), _BLOCK_LENGTH_);
-  block = block.substr(0, std::min(_BLOCK_LENGTH_, (int)(block.find_first_of(_EMPTY_SYMBOL_))));
-  return block;
+  try
+  {
+    std::string block = message.substr(_ID_LENGTH_ + _HEAD_LENGTH_ + _BLOCK_LENGTH_ * (block_number - 2), _BLOCK_LENGTH_);
+    block = block.substr(0, std::min(_BLOCK_LENGTH_, (int)(block.find_first_of(_EMPTY_SYMBOL_))));
+    return block;
+  }
+  catch (std::exception& e)
+  {
+    std::cerr << "Exception in get_block: " << e.what() << "\n";
+    return make_block((std::string)"error");
+  }
 }
 
 std::string get_chat_message(std::string message)
 {
-  return message.substr(_ID_LENGTH_ + _HEAD_LENGTH_, message.size() - (_ID_LENGTH_ + _HEAD_LENGTH_));;
+  try
+  {
+    return message.substr(_ID_LENGTH_ + _HEAD_LENGTH_, message.size() - (_ID_LENGTH_ + _HEAD_LENGTH_));;
+  }
+  catch (std::exception& e)
+  {
+    std::cerr << "Exception in get_head: " << e.what() << "\n";
+    return (std::string)"error";
+  }
+  
 }
 //*****************************************************************************************//
 

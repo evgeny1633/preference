@@ -16,15 +16,16 @@
 #define _sock_ (clients.socket.at(inner_number))
 #define _id_ (clients.id.at(inner_number))
 
-using boost::asio::ip::tcp;
+// using boost::asio::ip::tcp;
+using namespace std;
 struct clients_list
 { 
   std::vector <int> id;
-  std::vector <tcp::socket> socket;
+  std::vector <boost::asio::ip::tcp::socket> socket;
   std::vector <bool> connected;
   std::vector <bool> playing;
   std::vector <int> version;
-} clients; //it's impossible to create vector of clients, because it's impossible to declare tcp::socket inside it
+} clients; //it's impossible to create vector of clients, because it's impossible to declare boost::asio::ip::tcp::socket inside it
 
 //inner_number -- number of element in clients vector, everywhere.
 
@@ -34,6 +35,7 @@ Updater updater;//class to update log window via QApplication::connect
 
 std::vector <int> active_players /*= {0, 1, 2}*/ ;
 std::mutex clients_mutex; // mutex to avoid undefined behavior with clients. some threads can read\write into it simultaniously.
+std::mutex active_players_mutex; // mutex to avoid undefined behavior with active_players. some threads can read\write into it simultaniously.
 
 // template<class TYPE>
 // void output (TYPE data, Updater &updater);
@@ -64,6 +66,7 @@ void iffunction(int inner_number, std::string &input_message)
   std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
   if (input_message.size() < _ID_LENGTH_ + _HEAD_LENGTH_)
     return;
+  std::stringstream ss;
   std::string message = input_message;
   char data[max_buffer_length] = {};
   
@@ -102,10 +105,21 @@ void iffunction(int inner_number, std::string &input_message)
   if ( block.at(1) == "offer"      )  {  }
   if ( block.at(1) == "chat"       )
   {
-    message = message.substr(_ID_LENGTH_ + _HEAD_LENGTH_, message.size() - _ID_LENGTH_ - _HEAD_LENGTH_);
-    output (message);   //     chat_outpur(message);
-  //then block[2] is playername
-  //send a message to everyone
+    ss.str("");
+    ss << "player " << get_client_id(message) << "[" << ctiming() << "]: " << get_chat_message(message);
+    output(ss.str());
+    for (auto iterator = clients.connected.begin(); iterator != clients.connected.end(); ++iterator)
+    {
+      if (*iterator)
+      {
+        ss.str("");
+        ss << make_client_id(get_int_client_id(message)) << make_head("chat") << "player " << get_client_id(message) << "[" << ctiming() << "]: " << get_chat_message(message);
+        message_sender(iterator - clients.connected.begin(), ss.str());
+      }
+    }
+    //then block[2] is playername
+  
+
   }
   std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
   
@@ -219,6 +233,7 @@ void test_message_sender(int inner_number, std::string message, bool test)
     }
     catch (std::exception& e)
     {
+      std::cout << "test_sender __LINE__ = " << __LINE__ << std::endl;
       std::cerr << "Exception in cin thread: " << e.what() << "\n";
       clients_mutex.unlock();
     }
@@ -232,14 +247,15 @@ void message_sender(int inner_number, std::string message)
   try
   {
     std::strcpy (data, message.c_str());
-    std::cout << "message_sender __LINE__ = " << __LINE__ << std::endl;
-    std::lock_guard<std::mutex> sender_lock(clients_mutex);
-    std::cout << "message_sender __LINE__ = " << __LINE__ << std::endl;
+//     std::cout << "message_sender __LINE__ = " << __LINE__ << std::endl;
+//     std::lock_guard<std::mutex> sender_lock(clients_mutex);
+//     std::cout << "message_sender __LINE__ = " << __LINE__ << std::endl;
     boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
     std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.id.at(inner_number) << std::endl;
   }
   catch (std::exception& e)
   {
+    std::cout << "message_sender __LINE__ = " << __LINE__ << std::endl;
     std::cerr << "Exception in message sender: " << e.what() << "\n";
   }
 }
@@ -254,7 +270,7 @@ std::string send_receive(int inner_number, std::string message)
     std::strcpy (data, message.c_str());
     std::lock_guard<std::mutex> sender_lock(clients_mutex);
     boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
-    std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.id.at(inner_number) << std::endl;
+//     std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.id.at(inner_number) << std::endl;
     _sock_.read_some(boost::asio::buffer(data), error); //read message
     message = data;
   }
@@ -262,7 +278,6 @@ std::string send_receive(int inner_number, std::string message)
   {
     std::cerr << "Exception in send_receive: " << e.what() << "\n";
     message = e.what();
-    
   }
   return message;
 }
@@ -291,18 +306,19 @@ void deck_distribution()
   d_player.resize(3);
   
   int talon_place = rand() % 20 + 6;
-  talon_place = talon_place - talon_place % 2 + 1; //make it odd 
+  talon_place = talon_place + talon_place % 2; //make it even(!)
+  std::cout << "deck_distribution __LINE__ = " << __LINE__ << ";\ttalon_place = " << talon_place << std::endl;
   
   for ( int i = 0; i < 32; )
   {
     for (auto i_d_player = d_player.begin(); i_d_player != d_player.end(); i_d_player++)
     {
-      (*i_d_player).push_back(deck.at(++i));
-      (*i_d_player).push_back(deck.at(++i));
+      (*i_d_player).push_back(deck.at(i++));
+      (*i_d_player).push_back(deck.at(i++));
       if (i == talon_place)
       {
-        talon.push_back(deck.at(++i));
-        talon.push_back(deck.at(++i));
+        talon.push_back(deck.at(i++));
+        talon.push_back(deck.at(i++));
       }
     }
   }
@@ -393,23 +409,30 @@ void distribution()
   }
   
 }*/
-void trade(){}
-void booking(){}
-void vists(){}
-void moves(){}
-void offers(){}
-void result(){}
-void cleaning(){}
+void trade(){std::cout << "trade __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+void booking(){std::cout << "booking __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+void vists(){std::cout << "vists __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+void moves(){std::cout << "moves __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+void offers(){std::cout << "offers __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+void result(){std::cout << "result __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+void cleaning(){std::cout << "cleaning __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
 
 //main game cycle
 void game_cycle()
 {
   std::vector<int> check;
   std::stringstream ss;
-  while (check_active() != 0)
+  try
   {
-    ss.str("");  ss << "waiting for " << check_active() << " more clients to play";  output (ss.str());
-    usleep(5e6);
+    while (check_active() != 0)
+    {
+      ss.str("");  ss << "waiting for " << check_active() << " more clients to play";  output (ss.str());
+      usleep(5e6);
+    }
+  }
+  catch (std::exception& e)
+  {
+    std::cerr << "Exception in game_cycle: " << e.what() << "\n";
   }
   
   while(true)
@@ -417,15 +440,19 @@ void game_cycle()
     do
     {
       check.resize(0);
+      std::cout << "game_cycle __LINE__ = " << __LINE__ << std::endl;
       check = check_alive();
+      std::cout << "game_cycle __LINE__ = " << __LINE__ << std::endl;
       for (auto iterator : check)
       {
         ss.str("");  ss << "waiting for client " << iterator << " to connect";  output (ss.str());
       }
-      usleep(5e6);
-      ss.str("");  ss << "waiting for " << check.size() << " more clients " << " to connect";  output (ss.str());
-      
-    } while ( check.size() == 0 );
+      if (check.size() > 0)
+      {
+        ss.str("");  ss << "waiting for " << check.size() << " more clients " << " to connect";  output (ss.str());
+        usleep(5e6);
+      }
+    } while ( check.size() != 0 );
     
     deck_distribution();
     trade();
@@ -440,8 +467,6 @@ void game_cycle()
   
   
 }
-
-
 
 
 /*
@@ -469,12 +494,12 @@ void server(boost::asio::io_service &io_service, unsigned short port)
   std::cout << "server __LINE__ = " << __LINE__ << std::endl;  
 //   deck_distribution();
   std::cout << "port = " << port << std::endl;
-  tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), port));
+  boost::asio::ip::tcp::acceptor acceptor(io_service, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port));
   std::thread([]{ test_message_sender();}).detach(); //cin sender
   std::thread(game_cycle).detach(); 
   for (;;)
   {
-    tcp::socket sock(io_service);    //open socket
+    boost::asio::ip::tcp::socket sock(io_service);    //open socket
     std::cout << "server __LINE__ = " << __LINE__ << std::endl;
     acceptor.accept(sock);           //wait for message
     
@@ -482,12 +507,19 @@ void server(boost::asio::io_service &io_service, unsigned short port)
     boost::system::error_code error;
     std::cout << "server __LINE__ = " << __LINE__ << std::endl;
     sock.read_some(boost::asio::buffer(data), error); //read message
+//     size_t reply_length = boost::asio::read(sock,boost::asio::buffer(data, max_buffer_length));
     message = data;
+    if (message.size() < _ID_LENGTH_ + _HEAD_LENGTH_)      
+    {
+      std::cerr << "Error: server received short message: \"" << message << "\" of size " << message.size() << std::endl;
+      continue;
+    }
+    std::cout << "server __LINE__ = " << __LINE__ << std::endl;
     if (get_head(message) == "alive")
     {
       reconnected = false;
       id = get_int_client_id(message);
-      std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+      std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
       server_lock.lock();
       for (auto iterator = clients.id.begin(); iterator != clients.id.end(); ++iterator)
       {
@@ -497,20 +529,29 @@ void server(boost::asio::io_service &io_service, unsigned short port)
           reconnected = true;
           inner_number = iterator - clients.id.begin();
           clients.socket.at(inner_number) = std::move(sock);
+//           std::cout << "clients.socket.at(" << inner_number << ") = " << &(clients.socket.at(inner_number)) << std::endl;
         }
       }
       if (!reconnected)
       {
+        std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
         clients.id.push_back(id);
         clients.socket.push_back(std::move(sock));
+        clients.connected.push_back(true);
         inner_number = clients.id.size() - 1;
         active_players.push_back(inner_number);
+//         std::cout << "clients.socket.at(" << inner_number << ") = " << &(clients.socket.at(inner_number)) << std::endl;
       }
-      std::cout << "server __LINE__ = " << __LINE__ << std::endl;
       server_lock.unlock();
     }
+    else
+    {
+      std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+      std::cout << "get_int_client_id(message) = " << get_int_client_id(message) << ";\tget_head(message) = " << get_head(message) << ";\tmessage = " << message /*<< ";\tsock = " << &sock*/ << std::endl;
+      iffunction(get_int_client_id(message), message);
+    }
     
-    if (get_head(message) == "chat")
+/*    if (get_head(message) == "chat")
     {
       ss.str("");
       ss << "player " << get_client_id(message) << "[" << ctiming() << "]: " << get_chat_message(message);
@@ -524,12 +565,16 @@ void server(boost::asio::io_service &io_service, unsigned short port)
           ss << get_client_id(message) << get_head(message) << chat_message;
           message_sender(iterator - clients.connected.begin(), ss.str());
         }
-        
       }
-        
     }
-    
+   */ 
+
     std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+//     std::cout << "sock.is_open() : " << sock.is_open() << std::endl;
+//     sock.shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+//     std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+//     sock.close();
+//     std::cout << "sock.is_open() : " << sock.is_open() << std::endl;
 //     std::thread(session, inner_number).detach(); //somebody connected; read what they sent to us
 //     std::thread(session, std::ref(clients), std::ref(message), std::ref(updater)).detach(); //somebody connected; read what they sent to us
   }
@@ -586,7 +631,7 @@ int main(int argc, char *argv[])
   }
   catch (std::exception& e)
   {
-    std::cerr << "Exception: " << e.what() << "\n";
+    std::cerr << "Exception in server: " << e.what() << "\n";
   }
   
   return 0;
