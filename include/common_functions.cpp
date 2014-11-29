@@ -43,7 +43,7 @@ std::string make_client_id(int int_client_id)
    return client_id;
 }
 
-std::string make_message(int int_client_id, std::string head)
+std::string make_message(int int_client_id, std::string head, std::string message)
 {
    std::stringstream ss;
    std::string client_id = make_client_id(int_client_id);
@@ -55,6 +55,7 @@ std::string make_message(int int_client_id, std::string head)
    for (int i = 0; i < _HEAD_LENGTH_ - (int)head.length(); i++)
       ss << _EMPTY_SYMBOL_;
    
+   ss << message;
    return ss.str();
 }
 

@@ -7,13 +7,14 @@
 
 #define _sock_ (socket_for_read.at(0))
 
+int int_client_id;
 std::vector <boost::asio::ip::tcp::socket> socket_for_read;
 
-std::string make_head(std::string head);
-std::string make_client_id(int int_client_id);
+// std::string make_head(std::string head);
+// std::string make_client_id(int int_client_id);
 
 //send message to server directly from cin
-void cin_sender(boost::asio::ip::tcp::socket& sock)
+void cin_sender()
 {
   std::string message;
   try
@@ -27,7 +28,7 @@ void cin_sender(boost::asio::ip::tcp::socket& sock)
       getline ( std::cin, message );
       std::cin.clear();
       std::strcpy (data, message.c_str());
-      boost::asio::write(sock, boost::asio::buffer(data, max_buffer_length));    //send message back to client
+      boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
       std::cout << "Message succesfully sent ! " << std::endl;
 //       std::cout << "__LINE__ = " << __LINE__ << std::endl;
     }
@@ -39,30 +40,29 @@ void cin_sender(boost::asio::ip::tcp::socket& sock)
 }
 
 //send message to server directly from cin
-void chat_sender(char* host, char* port, int client_id)
+void chat_sender(char* host, char* port)
 {
   std::string message;
   std::stringstream ss;
   try
   {
+    boost::asio::io_service io_service;
+    boost::asio::ip::tcp::resolver resolver(io_service);
     for (;;)
     {
       char data[max_buffer_length] = {};
-      boost::asio::io_service io_service;
-      boost::asio::ip::tcp::socket socket(io_service);
-      boost::asio::ip::tcp::resolver resolver(io_service);
-      boost::asio::connect(socket, resolver.resolve({host, port}));
-
       std::cout << "Feel free to enter message here..." << std::endl;
-      
       getline ( std::cin, message );
       std::cin.clear();
       ss.str("");
-      ss << make_client_id(client_id) << make_head("chat") << message;
+      ss << make_client_id(int_client_id) << make_head("chat") << message;
       std::strcpy (data, ss.str().c_str());
+      boost::asio::ip::tcp::socket socket(io_service);
+      boost::asio::connect(socket, resolver.resolve({host, port}));
       boost::asio::write(socket, boost::asio::buffer(data, max_buffer_length));    //send message back to client
       std::cout << "Message succesfully sent ! " << std::endl;
-//       std::cout << "__LINE__ = " << __LINE__ << std::endl;
+      socket.shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+      socket.close();
     }
   }
   catch (std::exception& e)
@@ -70,6 +70,8 @@ void chat_sender(char* host, char* port, int client_id)
     std::cerr << "Exception in chat_sender: " << e.what() << "\n";
   }
 }
+
+
 /*
 void sig_handler(int sig)
 {
@@ -88,7 +90,6 @@ void sig_handler(int sig)
 int main(int argc, char* argv[])
 {
 //   signal(SIGTERM, sig_handler);
-  int int_client_id;
   std::stringstream stringstream;
   std::string head; 
   std::string body;
@@ -120,6 +121,7 @@ int main(int argc, char* argv[])
     boost::asio::ip::tcp::socket socket(io_service);
     boost::asio::ip::tcp::resolver resolver(io_service);
     boost::asio::connect(socket, resolver.resolve({host, port}));
+    socket_for_read.push_back(std::move(socket));
 
     char request[max_buffer_length];
     stringstream.str("");
@@ -129,16 +131,16 @@ int main(int argc, char* argv[])
 //       std::cout << "stringstream.str().c_str() = " << stringstream.str().c_str() << std::endl;
     stringstream >> request;
     std::cout << "request = \""<< request << "\"" << std::endl;
-    boost::asio::write(socket, boost::asio::buffer(request, (size_t)std::strlen(request)));
+    boost::asio::write(_sock_, boost::asio::buffer(request, (size_t)std::strlen(request)));
 
-//     std::thread(cin_sender, std::ref(socket)).detach(); 
-    std::thread ([host, port, int_client_id]{chat_sender(host, port, int_client_id);}).detach(); 
+//     std::thread(cin_sender, std::ref(_sock_)).detach(); 
+    std::thread ([host, port]{chat_sender(host, port);}).detach(); 
     
 
     char reply[max_buffer_length];
     while(true)
     {
-      size_t reply_length = boost::asio::read(socket,boost::asio::buffer(reply, max_buffer_length));
+      size_t reply_length = boost::asio::read(_sock_,boost::asio::buffer(reply, max_buffer_length));
       try
       {
         if ( get_head( (std::string)reply ) == "chat" )
@@ -147,7 +149,7 @@ int main(int argc, char* argv[])
         }
         if ( get_head ((std::string)reply) == "alive" )
         {
-          boost::asio::write(socket, boost::asio::buffer(reply, (size_t)std::strlen(reply)));
+          boost::asio::write(_sock_, boost::asio::buffer(reply, (size_t)std::strlen(reply)));
         }
         else
         {
@@ -163,7 +165,8 @@ int main(int argc, char* argv[])
   }
   catch (std::exception& e)
   {
-    std::cerr << "Exception: " << e.what() << "\n";
+    std::cerr << "Exception in main: " << e.what() << "\n";
+    return 1;
   }
   
 
