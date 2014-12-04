@@ -59,6 +59,32 @@ void output (std::string string)
   #endif
 }
 
+void handler_action(int dummy_needed_for_type_conversion)
+{
+  std::stringstream ss;
+  for (auto iterator = clients.connected.begin(); iterator != clients.connected.end(); ++iterator)
+  {
+    if (*iterator)
+    {
+      ss.str("");
+      ss << make_message(0, "service", "serverwaskilled");
+//       ss << make_client_id(0) << make_head("service") << make_block("killed");
+      message_sender(iterator - clients.connected.begin(), ss.str());
+    }
+  }
+  std::cout << std::endl << "Server was killed. Bye !" << std::endl << std::endl;
+  exit(10);
+}
+
+void death_handler()
+{ 
+  struct sigaction action;
+  action.sa_handler = handler_action; /* Do our own action */
+  sigaction(SIGTERM, &action, NULL);  /* killall */
+  sigaction(SIGINT,  &action, NULL);  /* ctrl-c  */
+}
+
+
 //divide message into parts and decide what to do with the message
 void iffunction(int inner_number, std::string &input_message)
 {
@@ -366,6 +392,18 @@ std::string check_one(int inner_numer)
   return send_receive(inner_numer, ss.str());
 }
 
+/*
+void check_one_endless(int inner_numer)
+{
+  std::stringstream ss;
+  while(true)
+  {
+    ss.str(""); ss << make_client_id(inner_numer) << make_head("alive");
+    std::cout << "i send " << send_receive(inner_numer, ss.str()) << std::endl;
+    usleep(5e6);
+  }
+}*/
+
 //check all active players
 std::vector<int> check_alive()
 {
@@ -540,7 +578,6 @@ void server(boost::asio::io_service &io_service, unsigned short port)
         clients.connected.push_back(true);
         inner_number = clients.id.size() - 1;
         active_players.push_back(inner_number);
-//         std::cout << "clients.socket.at(" << inner_number << ") = " << &(clients.socket.at(inner_number)) << std::endl;
       }
       server_lock.unlock();
     }
@@ -582,6 +619,7 @@ void server(boost::asio::io_service &io_service, unsigned short port)
 
 int main(int argc, char *argv[])
 {
+  death_handler();
   #ifdef __QT__
   QApplication a(argc, argv);
   Widget w;

@@ -42,6 +42,7 @@ void cin_sender()
 //send message to server directly from cin
 void chat_sender(char* host, char* port)
 {
+  chat_sender_beginning:
   std::string message;
   std::stringstream ss;
   try
@@ -68,6 +69,7 @@ void chat_sender(char* host, char* port)
   catch (std::exception& e)
   {
     std::cerr << "Exception in chat_sender: " << e.what() << "\n";
+    goto chat_sender_beginning;
   }
 }
 
@@ -108,21 +110,35 @@ int main(int argc, char* argv[])
   client_id = make_client_id(int_client_id);
   std::cout << "client_id = " << client_id << "\tint_client_id = " << int_client_id << std::endl;
 //    std::cout << "head = \"" << head << "\"" << std::endl;
+//   beginning:
   try
   {
+    std::cout << "main __LINE__ = " << __LINE__ << std::endl;
     if (argc != 3)
     {
       std::cerr << "Usage: ./_client <host> <port>\n";
       return 1;
     }
-
+    
 //       std::strcpy(argv[1], "localhost");
+//     std::cout << "main __LINE__ = " << __LINE__ << std::endl;
     boost::asio::io_service io_service;
     boost::asio::ip::tcp::socket socket(io_service);
     boost::asio::ip::tcp::resolver resolver(io_service);
     boost::asio::connect(socket, resolver.resolve({host, port}));
-    socket_for_read.push_back(std::move(socket));
+//     std::cout << "main __LINE__ = " << __LINE__ << std::endl;
+//     if (socket_for_read.size() == 0)
+//     {
+//       std::cout << "main __LINE__ = " << __LINE__ << std::endl;
+      socket_for_read.push_back(std::move(socket));
+//     }
+//     else if (socket_for_read.size() > 0)
+//     {
+//       std::cout << "main __LINE__ = " << __LINE__ << std::endl;
+//       socket_for_read.at(0) = std::move(socket);
+//     }
 
+//     std::cout << "main __LINE__ = " << __LINE__ << std::endl;
     char request[max_buffer_length];
     stringstream.str("");
     stringstream << client_id << head;
@@ -132,6 +148,7 @@ int main(int argc, char* argv[])
     stringstream >> request;
     std::cout << "request = \""<< request << "\"" << std::endl;
     boost::asio::write(_sock_, boost::asio::buffer(request, (size_t)std::strlen(request)));
+//     std::cout << "main __LINE__ = " << __LINE__ << std::endl;
 
 //     std::thread(cin_sender, std::ref(_sock_)).detach(); 
     std::thread ([host, port]{chat_sender(host, port);}).detach(); 
@@ -140,16 +157,26 @@ int main(int argc, char* argv[])
     char reply[max_buffer_length];
     while(true)
     {
+//       std::cout << "main __LINE__ = " << __LINE__ << std::endl;
       size_t reply_length = boost::asio::read(_sock_,boost::asio::buffer(reply, max_buffer_length));
       try
       {
-        if ( get_head( (std::string)reply ) == "chat" )
+        if ( get_head((std::string)reply) == "chat" )
         {
           std::cout << get_chat_message((std::string)reply) << std::endl;
         }
-        if ( get_head ((std::string)reply) == "alive" )
+        else if ( get_head ((std::string)reply) == "alive" )
         {
           boost::asio::write(_sock_, boost::asio::buffer(reply, (size_t)std::strlen(reply)));
+        }
+        else if ( get_head ((std::string)reply) == "service" )
+        {
+          if ( get_block ((std::string)reply) == "serverwaskilled" )
+          {
+            std::cerr << std::endl << "Server said that he was killed. What should we do ? " << std::endl << std::endl;
+//             goto beginning;
+            return 10;
+          }
         }
         else
         {
@@ -158,15 +185,18 @@ int main(int argc, char* argv[])
       }
       catch (std::exception& e)
       {
-        std::cerr << "get_head exception: " << e.what() << "\n";
+        std::cerr << "while exception: " << e.what() << "\n";
       }
     }
 //     chat_sender_thread.join();
   }
   catch (std::exception& e)
   {
-    std::cerr << "Exception in main: " << e.what() << "\n";
-    return 1;
+    std::cerr << "Exception in main: \"" << e.what() << "\"" << std::endl;
+//     std::cerr << "Let's wait and try to connect there again" << std::endl;
+//     usleep(1e6);
+//     goto beginning;
+//     return 1;
   }
   
 

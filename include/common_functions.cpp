@@ -21,42 +21,47 @@ std::string make_head(std::string head)
 
 std::string make_block(std::string block)
 {
-   block.resize (_BLOCK_LENGTH_,_EMPTY_SYMBOL_);
-   return block;
+  if ( block.size() + _BLOCK_LENGTH_ - ( block.size() % _BLOCK_LENGTH_ ) < max_buffer_length )
+    block.resize ( block.size() + _BLOCK_LENGTH_ - ( block.size() % _BLOCK_LENGTH_ ), _EMPTY_SYMBOL_);  
+  else
+    block.resize ( max_buffer_length, _EMPTY_SYMBOL_);  
+  return block; // "[____][____][____][__" -> "[____][____][____][____]"  fill the rest of the block at the end with the "_EMPTY_SYMBOL_"
 }
 
 std::string make_block(int block)
 {
-   std::stringstream ss;
-   ss << block;
-   std::string block_id = ss.str();
-   block_id.resize(_BLOCK_LENGTH_, _EMPTY_SYMBOL_);
-   return block_id;
+  std::stringstream ss;
+  ss << block;
+  std::string block_id = ss.str();
+  make_block(block_id);
+//   block_id.resize ( min(block_id.size() + _BLOCK_LENGTH_ - ( block_id.size() % _BLOCK_LENGTH_ ),max_buffer_length), _EMPTY_SYMBOL_);  
+//   return block_id; // "[____][____][____][__" -> "[____][____][____][____]"  fill the rest of the block at the end with the "_EMPTY_SYMBOL_"
+  return make_block(block_id);
 }
 
 std::string make_client_id(int int_client_id)
 {
-   std::stringstream ss;
-   ss << int_client_id;
-   std::string client_id = ss.str();
-   client_id.resize(_ID_LENGTH_, _EMPTY_SYMBOL_);
-   return client_id;
+  std::stringstream ss;
+  ss << int_client_id;
+  std::string client_id = ss.str();
+  client_id.resize(_ID_LENGTH_, _EMPTY_SYMBOL_);
+  return client_id;
 }
 
 std::string make_message(int int_client_id, std::string head, std::string message)
 {
-   std::stringstream ss;
-   std::string client_id = make_client_id(int_client_id);
-   ss << client_id;
-   for (int i = 0; i < _ID_LENGTH_ - (int)client_id.length(); i++)
-      ss << _EMPTY_SYMBOL_;
-   head = make_head(head);
-   ss << head;
-   for (int i = 0; i < _HEAD_LENGTH_ - (int)head.length(); i++)
-      ss << _EMPTY_SYMBOL_;
-   
-   ss << message;
-   return ss.str();
+  std::stringstream ss;
+  std::string client_id = make_client_id(int_client_id);
+  ss << client_id;
+  for (int i = 0; i < _ID_LENGTH_ - (int)client_id.length(); i++)
+    ss << _EMPTY_SYMBOL_;
+  head = make_head(head);
+  ss << head;
+  for (int i = 0; i < _HEAD_LENGTH_ - (int)head.length(); i++)
+    ss << _EMPTY_SYMBOL_;
+
+  ss << make_block(message);
+  return ss.str();
 }
 
 std::string get_client_id(std::string message)
@@ -94,7 +99,7 @@ std::string get_head(std::string message)
   }
 }
 
-std::string get_block(std::string message, int block_number)
+std::string get_block(std::string message, int block_number = 2) // from 2 ; id -> 0 ; head -> 1.
 {
   try
   {
