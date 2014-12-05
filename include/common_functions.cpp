@@ -21,21 +21,21 @@ std::string make_head(std::string head)
 
 std::string make_block(std::string block)
 {
+  if (block.size() == 0)
+    return "";
+  
   if ( block.size() + _BLOCK_LENGTH_ - ( block.size() % _BLOCK_LENGTH_ ) < max_buffer_length )
     block.resize ( block.size() + _BLOCK_LENGTH_ - ( block.size() % _BLOCK_LENGTH_ ), _EMPTY_SYMBOL_);  
   else
     block.resize ( max_buffer_length, _EMPTY_SYMBOL_);  
-  return block; // "[____][____][____][__" -> "[____][____][____][____]"  fill the rest of the block at the end with the "_EMPTY_SYMBOL_"
+  return block; // "[____][____][____][__" -> "[____][____][____][____]"  fill the rest of the block at the end with the "_EMPTY_SYMBOL_" (don't forget to compare it with the max_buffer_length)
 }
 
-std::string make_block(int block)
+std::string make_block(int block) // really, why do we need this ? ... just let it be ...
 {
   std::stringstream ss;
   ss << block;
   std::string block_id = ss.str();
-  make_block(block_id);
-//   block_id.resize ( min(block_id.size() + _BLOCK_LENGTH_ - ( block_id.size() % _BLOCK_LENGTH_ ),max_buffer_length), _EMPTY_SYMBOL_);  
-//   return block_id; // "[____][____][____][__" -> "[____][____][____][____]"  fill the rest of the block at the end with the "_EMPTY_SYMBOL_"
   return make_block(block_id);
 }
 
@@ -48,7 +48,7 @@ std::string make_client_id(int int_client_id)
   return client_id;
 }
 
-std::string make_message(int int_client_id, std::string head, std::string message)
+std::string make_message(int int_client_id, std::string head, std::string message = "")
 {
   std::stringstream ss;
   std::string client_id = make_client_id(int_client_id);

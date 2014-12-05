@@ -8,13 +8,45 @@
 #define _sock_ (socket_for_read.at(0))
 
 int int_client_id;
-std::vector <boost::asio::ip::tcp::socket> socket_for_read;
+// std::vector <boost::asio::ip::tcp::socket> socket_for_read;
+char* host;   //these are globals because they are passed to the death handler
+char* port;
 
 // std::string make_head(std::string head);
 // std::string make_client_id(int int_client_id);
 
-//send message to server directly from cin
-void cin_sender()
+void handler_action(int signal_number) //this function will be called when client is killed or receive certain SIGnals
+{
+  std::string message;
+  std::stringstream ss;
+  char request[max_buffer_length];
+  std::strcpy( request, (make_message(int_client_id, "service", "clientwaskilled")).c_str() );
+  try
+  {
+    boost::asio::io_service io_service;
+    boost::asio::ip::tcp::resolver resolver(io_service);
+    boost::asio::ip::tcp::socket socket(io_service);
+    boost::asio::connect(socket, resolver.resolve({host, port}));
+    boost::asio::write(socket, boost::asio::buffer(request, max_buffer_length));    //send message back to client
+    std::cout << std::endl << "Client was killed. Bye !" << std::endl << std::endl;
+  }
+  catch (std::exception& e) 
+  {
+    std::cout << std::endl << "Client was killed and server is unreacheable. Bye !" << std::endl << std::endl;
+  }
+  exit(10);
+}
+
+void death_handler()  //this function defines what SIGnals we should handle
+{ 
+  struct sigaction action;
+  action.sa_handler = handler_action; /* Do our own action */
+  sigaction(SIGTERM, &action, NULL);  /* killall */
+  sigaction(SIGINT,  &action, NULL);  /* ctrl-c  */
+}
+
+/*
+void cin_sender() //send message to server directly from cin
 {
   std::string message;
   try
@@ -37,12 +69,11 @@ void cin_sender()
   {
     std::cerr << "Exception in cin thread: " << e.what() << "\n";
   }
-}
+}*/
 
 //send message to server directly from cin
 void chat_sender(char* host, char* port)
 {
-  chat_sender_beginning:
   std::string message;
   std::stringstream ss;
   try
@@ -55,6 +86,7 @@ void chat_sender(char* host, char* port)
       std::cout << "Feel free to enter message here..." << std::endl;
       getline ( std::cin, message );
       std::cin.clear();
+
       ss.str("");
       ss << make_client_id(int_client_id) << make_head("chat") << message;
       std::strcpy (data, ss.str().c_str());
@@ -69,96 +101,42 @@ void chat_sender(char* host, char* port)
   catch (std::exception& e)
   {
     std::cerr << "Exception in chat_sender: " << e.what() << "\n";
-    goto chat_sender_beginning;
   }
 }
 
-
-/*
-void sig_handler(int sig)
+int client(char* host, char* port, int int_client_id)
 {
-  if (sig == SIGSEGV)
-  {
-    std::cout << "give out a backtrace or something...\n";
-  }
-  if (sig == SIGTERM)
-  {
-    std::cout << "terminating...\n";
-  }
-  else
-    std::cout << "wasn't expecting that!\n";
-}*/
-
-int main(int argc, char* argv[])
-{
-//   signal(SIGTERM, sig_handler);
+  std::cout << "client __LINE__ = " << __LINE__ << std::endl;
   std::stringstream stringstream;
-  std::string head; 
-  std::string body;
-  std::string client_id;
-  std::string string;
-//    stringstream << "00" << int_client_id;
-//    client_id = stringstream.str();
-  char* host = argv[1];
-  char* port = argv[2];
-
-  srand (time(NULL));  // initialize random seed: 
-//   int_client_id = 18; 
-  int_client_id = (int) (rand() % 30 + 3) ; //range 3-32
-  head = "alive";
-  head = make_head(head);
-  client_id = make_client_id(int_client_id);
-  std::cout << "client_id = " << client_id << "\tint_client_id = " << int_client_id << std::endl;
-//    std::cout << "head = \"" << head << "\"" << std::endl;
-//   beginning:
+  std::vector <boost::asio::ip::tcp::socket> socket_for_read;
+  std::cout << "client __LINE__ = " << __LINE__ << std::endl;
   try
   {
-    std::cout << "main __LINE__ = " << __LINE__ << std::endl;
-    if (argc != 3)
-    {
-      std::cerr << "Usage: ./_client <host> <port>\n";
-      return 1;
-    }
-    
-//       std::strcpy(argv[1], "localhost");
-//     std::cout << "main __LINE__ = " << __LINE__ << std::endl;
+    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
     boost::asio::io_service io_service;
+    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
     boost::asio::ip::tcp::socket socket(io_service);
+    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
     boost::asio::ip::tcp::resolver resolver(io_service);
+    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
     boost::asio::connect(socket, resolver.resolve({host, port}));
-//     std::cout << "main __LINE__ = " << __LINE__ << std::endl;
-//     if (socket_for_read.size() == 0)
-//     {
-//       std::cout << "main __LINE__ = " << __LINE__ << std::endl;
-      socket_for_read.push_back(std::move(socket));
-//     }
-//     else if (socket_for_read.size() > 0)
-//     {
-//       std::cout << "main __LINE__ = " << __LINE__ << std::endl;
-//       socket_for_read.at(0) = std::move(socket);
-//     }
+    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
+    socket_for_read.push_back(std::move(socket));
+    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
 
-//     std::cout << "main __LINE__ = " << __LINE__ << std::endl;
+    char reply[max_buffer_length];      
     char request[max_buffer_length];
-    stringstream.str("");
-    stringstream << client_id << head;
-//       request = stringstream.str().c_str();
-//       std::cout << "stringstream.str() = " << stringstream.str() << std::endl;
-//       std::cout << "stringstream.str().c_str() = " << stringstream.str().c_str() << std::endl;
-    stringstream >> request;
-    std::cout << "request = \""<< request << "\"" << std::endl;
+    std::strcpy( request, (make_message(int_client_id, "alive")).c_str() );
+//     std::cout << "request = \""<< request << "\"" << std::endl;
     boost::asio::write(_sock_, boost::asio::buffer(request, (size_t)std::strlen(request)));
-//     std::cout << "main __LINE__ = " << __LINE__ << std::endl;
-
+    
 //     std::thread(cin_sender, std::ref(_sock_)).detach(); 
     std::thread ([host, port]{chat_sender(host, port);}).detach(); 
-    
-
-    char reply[max_buffer_length];
+    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
     while(true)
     {
-//       std::cout << "main __LINE__ = " << __LINE__ << std::endl;
-      size_t reply_length = boost::asio::read(_sock_,boost::asio::buffer(reply, max_buffer_length));
+//       size_t reply_length = 
+      boost::asio::read(_sock_,boost::asio::buffer(reply, max_buffer_length));
       try
       {
         if ( get_head((std::string)reply) == "chat" )
@@ -173,8 +151,9 @@ int main(int argc, char* argv[])
         {
           if ( get_block ((std::string)reply) == "serverwaskilled" )
           {
-            std::cerr << std::endl << "Server said that he was killed. What should we do ? " << std::endl << std::endl;
-//             goto beginning;
+            std::cerr << std::endl << "Server said that he was killed. What should we do ? " << std::endl;
+            _sock_.shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+            _sock_.close();
             return 10;
           }
         }
@@ -188,50 +167,45 @@ int main(int argc, char* argv[])
         std::cerr << "while exception: " << e.what() << "\n";
       }
     }
-//     chat_sender_thread.join();
   }
   catch (std::exception& e)
   {
-    std::cerr << "Exception in main: \"" << e.what() << "\"" << std::endl;
-//     std::cerr << "Let's wait and try to connect there again" << std::endl;
-//     usleep(1e6);
-//     goto beginning;
-//     return 1;
+    std::cerr << "Exception in client: \"" << e.what() << "\"" << std::endl;
+    return 1;
   }
   
 
   return 0;
 }
 
-/*
-std::string make_head(std::string head)
+int main(int argc, char* argv[])
 {
-   head.resize (_HEAD_LENGTH_,_EMPTY_SYMBOL_);
-//    std::cout << "head = \"" << head << "\"" << std::endl;
-   return head;
+  if (argc != 3)
+  {
+    std::cerr << "Usage: ./_client <host> <port>\n";
+    return 1;
+  }
+//   std::strcpy(argv[1], "localhost");
+  host = argv[1];
+  port = argv[2];
+  srand (time(NULL));  // initialize random seed: 
+//   int_client_id = 18; 
+  int_client_id = (int) (rand() % 30 + 3) ; //range 3-32
+  std::cout << "client_id = " << int_client_id << std::endl;
+  death_handler();
+  int client_return;
+  while (true)
+  {
+    std::cout << "trying to connect to host \"" << host << "\" on port " << port << std::endl;
+    client_return = client(host, port, int_client_id);
+    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
+    if (client_return != 0)
+    {
+      usleep(1e6);
+      std::cout << "trying to reconnect to host " << host << " on port " << port << std::endl;
+      continue;
+    }
+    break;
+  }
+  return 0;
 }
-
-std::string make_client_id(int int_client_id)
-{
-   std::stringstream ss;
-   ss << int_client_id;
-   std::string client_id = ss.str();
-   client_id.resize(_ID_LENGTH_, _EMPTY_SYMBOL_);
-//    std::cout << "client_id = \"" << client_id << "\"" << std::endl;
-   return client_id;
-}
-
-std::string make_message(int int_client_id, std::string head)
-{
-   std::stringstream ss;
-   std::string client_id = make_client_id(int_client_id);
-   ss << client_id;
-   for (int i = 0; i < _ID_LENGTH_ - (int)client_id.length(); i++)
-      ss << _EMPTY_SYMBOL_;
-   head = make_head(head);
-   ss << head;
-   for (int i = 0; i < _HEAD_LENGTH_ - (int)head.length(); i++)
-      ss << _EMPTY_SYMBOL_;
-   
-   return ss.str();
-}*/
