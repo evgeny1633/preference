@@ -36,12 +36,8 @@ std::vector <int> active_players /*= {0, 1, 2}*/ ;
 std::mutex clients_mutex;        // mutex to avoid undefined behavior with "clients".        some threads can read\write into it simultaniously.
 std::mutex active_players_mutex; // mutex to avoid undefined behavior with "active_players". some threads can read\write into it simultaniously.
 
-// template<class TYPE>
-// void output (TYPE data, Updater &updater);
 void test_message_sender(int inner_number = 0, std::string message = "", bool test = true);
-void output (std::stringstream ss);
-void output (std::string string);
-// void append_text_box(QTextEdit *textBox, std::string message);
+void output (std::string string, bool with_new_line = true);
 void message_sender(int inner_number, std::string message); //send message to the client
 void session(int inner_number);
 void server(boost::asio::io_service &io_service, unsigned short port);
@@ -49,9 +45,12 @@ void deck_distribution();
 // void iffunction(int inner_number, std::string &input_message);
 
 //output to cout and to log window
-void output (std::string string)
+void output (std::string string, bool with_new_line)
 {
-  std::cout << string << std::endl;
+  if (with_new_line)
+    std::cout << string << std::endl;
+  else
+    std::cout << string;
   #ifdef __QT__
   updater.send_message_slot(QString::fromStdString(string));
   #endif
@@ -141,13 +140,17 @@ void iffunction(int inner_number, std::string &input_message)
     if( block.at(2) == "clientwaskilled" )
     {
       std::cout << "Client # " << block.at(0) << " was killed. Let's forget about him..." << std::endl;
+      std::cout << "inner_number = " << inner_number << ";\tclients.connected.size() = " << clients.connected.size() << std::endl;
       clients.connected.at(inner_number) = false;
+      std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
       for (auto iterator = active_players.begin(); iterator != active_players.end(); ++iterator)
       {
-        if (block.at(0) == make_client_id(*iterator))
+        std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
+        std::cout << "inner_number = " << inner_number << ";\t*iterator = " << *iterator << std::endl;
+        if (inner_number == *iterator)
         {
           std::cout << "iterator - active_players.begin() = " << iterator - active_players.begin() << std::endl;
-//           active_players.erase(iterator - active_players.begin());
+          active_players.erase(iterator);
           break;
         }
       }
@@ -173,14 +176,10 @@ void session(int inner_number)
   {
     for (;;) 
     {
-      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
       char data[max_buffer_length] = {};
       boost::system::error_code error;
-      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
       session_lock.lock();
-      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
       _sock_.read_some(boost::asio::buffer(data), error); //read message
-      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
       session_lock.unlock();
       if (error == boost::asio::error::eof)
       {
@@ -199,14 +198,11 @@ void session(int inner_number)
       updater.send_message_slot(QString::fromStdString(message));
       #endif
       std::strcpy (data, ss.str().c_str());
-      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
       iffunction(inner_number, message);
-      std::cout << "session __LINE__ = " << __LINE__ << std::endl;
     }
   }
   catch (std::exception& e)
   {
-    std::cout << "session __LINE__ = " << __LINE__ << std::endl;
     std::cerr << "Exception in session: " << e.what() << "\n";
     session_lock.unlock();
   }
@@ -443,6 +439,7 @@ void game_cycle()
 {
   std::vector<int> check;
   std::stringstream ss;
+  usleep(5e6);
   try
   {
     while (check_active() != 0)
@@ -546,7 +543,7 @@ void server(boost::asio::io_service &io_service, unsigned short port)
       {
         if (id == (*iterator))
         {
-          ss.str(""); ss << "Client # " << id << " reconnected\n"; output(ss.str());
+          ss.str(""); ss << "Client # " << id << " reconnected"; output(ss.str());
           reconnected = true;
           inner_number = iterator - clients.id.begin();
           clients.socket.at(inner_number) = std::move(sock);
@@ -569,8 +566,8 @@ void server(boost::asio::io_service &io_service, unsigned short port)
     else
     {
       std::cout << "server __LINE__ = " << __LINE__ << std::endl;
-      std::cout << "get_int_client_id(message) = " << get_int_client_id(message) << ";\tget_head(message) = " << get_head(message) << ";\tmessage = " << message /*<< ";\tsock = " << &sock*/ << std::endl;
-      iffunction(get_int_client_id(message), message);
+      std::cout << "get_int_client_id(message) = " << get_int_client_id(message) << ";\tget_head(message) = " << get_head(message) << ";\tmessage = " << message << std::endl;
+      iffunction(inner_number, message);
     }
     
 /*    if (get_head(message) == "chat")

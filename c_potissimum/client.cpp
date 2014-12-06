@@ -106,23 +106,16 @@ void chat_sender(char* host, char* port)
 
 int client(char* host, char* port, int int_client_id)
 {
-  std::cout << "client __LINE__ = " << __LINE__ << std::endl;
+//   std::cout << "client __LINE__ = " << __LINE__ << std::endl;
   std::stringstream stringstream;
   std::vector <boost::asio::ip::tcp::socket> socket_for_read;
-  std::cout << "client __LINE__ = " << __LINE__ << std::endl;
   try
   {
-    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
     boost::asio::io_service io_service;
-    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
     boost::asio::ip::tcp::socket socket(io_service);
-    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
     boost::asio::ip::tcp::resolver resolver(io_service);
-    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
     boost::asio::connect(socket, resolver.resolve({host, port}));
-    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
     socket_for_read.push_back(std::move(socket));
-    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
 
     char reply[max_buffer_length];      
     char request[max_buffer_length];
@@ -132,7 +125,6 @@ int client(char* host, char* port, int int_client_id)
     
 //     std::thread(cin_sender, std::ref(_sock_)).detach(); 
     std::thread ([host, port]{chat_sender(host, port);}).detach(); 
-    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
     while(true)
     {
 //       size_t reply_length = 
@@ -194,14 +186,13 @@ int main(int argc, char* argv[])
   std::cout << "client_id = " << int_client_id << std::endl;
   death_handler();
   int client_return;
+  std::cout << "trying to connect to host \"" << host << "\" on port " << port << std::endl;
   while (true)
   {
-    std::cout << "trying to connect to host \"" << host << "\" on port " << port << std::endl;
     client_return = client(host, port, int_client_id);
-    std::cout << "client __LINE__ = " << __LINE__ << std::endl;
     if (client_return != 0)
     {
-      usleep(1e6);
+      usleep(6e6);
       std::cout << "trying to reconnect to host " << host << " on port " << port << std::endl;
       continue;
     }
