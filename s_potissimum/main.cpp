@@ -25,6 +25,7 @@ struct clients_list
   std::vector <bool> connected;
   std::vector <bool> playing;
   std::vector <int> version;
+  std::vector <int> bet;
 } clients; //it's impossible to create vector of clients, because it's impossible to declare boost::asio::ip::tcp::socket inside it
 
 
@@ -32,7 +33,7 @@ struct clients_list
 Updater updater;//class to update log window via QApplication::connect
 #endif
 
-std::vector <int> active_players /*= {0, 1, 2}*/ ;
+std::vector <int> active_players = {-1, -1, -1};
 std::mutex clients_mutex;        // mutex to avoid undefined behavior with "clients".        some threads can read\write into it simultaniously.
 std::mutex active_players_mutex; // mutex to avoid undefined behavior with "active_players". some threads can read\write into it simultaniously.
 
@@ -89,11 +90,9 @@ void iffunction(int inner_number, std::string &input_message)
   int block_number = (input_message.size() - _ID_LENGTH_ - _HEAD_LENGTH_) / _BLOCK_LENGTH_ + 2; 
   std::vector<std::string> block;
   block.resize(block_number);
-  std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
   
   block.at(0) = get_client_id(message);
   block.at(1) = get_head(message);
-  std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
   for ( int i = 2; i < block_number; i++)
   {
     block.at(i) = get_block(message, i);
@@ -104,15 +103,9 @@ void iffunction(int inner_number, std::string &input_message)
   std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
   if ( block.at(1) == "alive" )
   {
+    message_sender(inner_number, message);    //     send him back alive signal
     std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
-    std::strcpy(data, message.c_str());
-    std::cout << "iffunction data = " << data << std::endl;
-    std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
-    message_sender(inner_number, message);
-//     boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
-    std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
-//     send him back alive signal
-//     send others that hi is connected
+//     send to others that he is connected
   }
 
   if ( block.at(1) == "statistics" )  { /* send him statistics */ }
@@ -265,20 +258,16 @@ void test_message_sender(int inner_number, std::string message, bool test)
 
 //send message to the client
 void message_sender(int inner_number, std::string message)
-{       //probably we don't need mutex here, because ..... stop, why ?
+{       //probably we don't need mutex here, because ..... stop, why ? because mutex will be out there
   char data[max_buffer_length] = {};      
   try
   {
     std::strcpy (data, message.c_str());
-//     std::cout << "message_sender __LINE__ = " << __LINE__ << std::endl;
-//     std::lock_guard<std::mutex> sender_lock(clients_mutex);  // 
-//     std::cout << "message_sender __LINE__ = " << __LINE__ << std::endl;
     boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
     std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.id.at(inner_number) << std::endl;
   }
   catch (std::exception& e)
   {
-    std::cout << "message_sender __LINE__ = " << __LINE__ << std::endl;
     std::cerr << "Exception in message sender: " << e.what() << "\n";
   }
 }
@@ -291,7 +280,6 @@ std::string send_receive(int inner_number, std::string message)
   {
     boost::system::error_code error;
     std::strcpy (data, message.c_str());
-    std::lock_guard<std::mutex> sender_lock(clients_mutex);
     boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
 //     std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.id.at(inner_number) << std::endl;
     _sock_.read_some(boost::asio::buffer(data), error); //read message
@@ -300,7 +288,7 @@ std::string send_receive(int inner_number, std::string message)
   catch (std::exception& e)
   {
     std::cerr << "Exception in send_receive: " << e.what() << "\n";
-    message = e.what();
+    return "exception";
   }
   return message;
 }
@@ -311,7 +299,7 @@ void current_bribe(){}
 void deck_distribution()
 {
 //   std::cout << "deck_distribution __LINE__ = " << __LINE__ << std::endl;
-  if(active_players.size() != 3 && active_players.size() != 4 )
+  if(active_players.at(0) == -1 || active_players.at(1) == -1 || active_players.at(2) == -1 )
   {
     std::cout << "distribution: wrong amount of players " << std::endl;
     return;
@@ -324,9 +312,12 @@ void deck_distribution()
   std::random_shuffle(deck.begin(), deck.end());
   std::random_shuffle(deck.begin(), deck.end());
   
+  std::lock_guard<std::mutex> deck_distribution_lock(active_players_mutex);
+  
   std::vector<std::vector<card>> d_player;
   std::vector<card> talon;
   d_player.resize(3);
+  
   
   int talon_place = rand() % 20 + 6;
   talon_place = talon_place + talon_place % 2; //make it even(!)
@@ -345,7 +336,7 @@ void deck_distribution()
       }
     }
   }
-  
+  deck_distribution_lock.lock();
   for (auto i_d_player = d_player.begin(); i_d_player != d_player.end(); i_d_player++)
   {
     ss.str(""); ss << "\nd_player.at(" << i_d_player - d_player.begin() << "):";// << (*i_d_player);
@@ -357,6 +348,7 @@ void deck_distribution()
       message_sender(active_players.at(i_d_player - d_player.begin()), ss.str());
     }
   }
+  deck_distribution_lock.unlock();
   
   output("\ntalon:"); 
   for (auto it = talon.begin(); it != talon.end(); ++it) output((*it).name);
@@ -386,6 +378,7 @@ std::string check_one(int inner_numer)
 {
   std::stringstream ss;
   ss.str(""); ss << make_client_id(inner_numer) << make_head("alive");
+  std::lock_guard<std::mutex> check_one_lock(clients_mutex);
   return send_receive(inner_numer, ss.str());
 }
 
@@ -408,6 +401,8 @@ std::vector<int> check_alive()
   std::stringstream ss;
   std::string message;
   std::cout << "check_alive __LINE__ = " << __LINE__ << std::endl;
+  std::lock_guard<std::mutex> check_alive_active_players_lock(active_players_mutex);
+  std::lock_guard<std::mutex> check_alive_clients_lock(clients_mutex);
   for (auto i_active = active_players.begin(); i_active != active_players.end(); ++i_active)
   {
     ss.str(""); ss << make_client_id(clients.id.at(*i_active)) << make_head("alive");
@@ -426,13 +421,85 @@ int check_active(int number = 3)
   return number - active_players.size();
 }
 
-void trade()   {std::cout << "trade    __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
-void booking() {std::cout << "booking  __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
-void vists()   {std::cout << "vists    __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
-void moves()   {std::cout << "moves    __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
-void offers()  {std::cout << "offers   __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
-void result()  {std::cout << "result   __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
-void cleaning(){std::cout << "cleaning __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+int trade(int first, int &minimum_bet = -1)   // return the number of player who made the booking or -1 if there is raspass
+{
+  std::cout << "trade    __LINE__ = " << __LINE__ << std::endl; 
+  std::unique_lock<std::mutex> trade_clients_lock(clients_mutex, std::defer_lock);  //clever lock
+  std::lock_guard <std::mutex> trade_active_players_lock(active_players_mutex, std::defer_lock); 
+  std::string message;
+  
+  int bet_number = 0;
+  
+  trade_clients_lock.lock();
+  clients.bet.resize(clients.connected.size(), -1);
+  for (auto it = clients.connected.begin(); it != clients.connected.end(); ++it)
+    if (*it)
+      clients.bet.at(it - clients.connected.begin()) = -1;  //reset them all
+  trade_clients_lock.unlock();
+  
+  for (auto iterator = active_players.begin() + first; true /*iterator != active_players.begin() + first - 1*/; iterator++)  
+  { //cycle from the particular place in the vector until the end of the trading
+    if (iterator == active_players.end())
+    {
+      iterator = active_players.begin();
+      continue;
+    }
+    
+    trade_clients_lock.lock();
+    if (clients.bet.at(*iterator) == 0) // "pass" -> 0 ; bet > 0; no decision -> -1
+    {
+      bet_number = 0;
+      for (auto iter = clients.bet.begin(); iter != clients.bet.end(); ++iter)  
+        if (*iter != 0) //check how many people have bets; need to be 0 or 1 to end the trade
+          bet_number++;
+        
+      if (bet_number == 0)      //raspass
+        return -1;              //raspass
+      else if (bet_number == 1) //booking was made
+        for (auto iter = clients.bet.begin(); iter != clients.bet.end(); ++iter)
+          if (*iter != 0)
+            return iter - clients.bet.begin(); // number of player who made the booking;
+          
+      trade_clients_lock.unlock();
+      continue;
+    }
+    
+    another_try: //in case of exception in send_receive try another time (below)
+    message = make_block("minimumbet") + make_block(minimum_bet);
+    message_sender(*iterator, make_message(*iterator, "trade", message));
+    message = send_receive(*iterator, make_message(*iterator, "trade", "yourturn"));  //here must be some check if the client is alive (see below) and here must be some check to kill the waiting after some time...probably
+    if (message == "exception") //in case of exception in send_receive try again
+    {
+      std::cerr << "exception trade __LINE__ " << __LINE__  << std::endl;
+      goto another_try;
+    }
+    
+    for (auto it = clients.connected.begin(); it != clients.connected.end(); ++it)
+      if (*it)
+        message_sender(*iterator, message);//send received message to everybody
+      
+    std::cout << atoi((get_block(message)).c_str()) << std::endl;
+    clients.bet.at(*iterator) = atoi((get_block(message)).c_str());
+    if (minimum_bet < clients.bet.at(*iterator))
+      minimum_bet = clients.bet.at(*iterator);
+    
+    trade_clients_lock.unlock();
+    
+  }
+}
+void show_talon() {std::cout << "booking  __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+void booking(int trade_winner, int minimum_bet)
+{
+  std::cout << "booking  __LINE__ = " << __LINE__ << std::endl; usleep(5e6);
+  
+  
+  
+}
+void vists()      {std::cout << "vists    __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+void moves()      {std::cout << "moves    __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+void offers()     {std::cout << "offers   __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+void result()     {std::cout << "result   __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+void cleaning()   {std::cout << "cleaning __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
 
 //main game cycle
 void game_cycle()
@@ -453,6 +520,11 @@ void game_cycle()
     std::cerr << "Exception in game_cycle: " << e.what() << "\n";
   }
   
+  int number_of_players = 3;
+  int trade_first = 0; // = rand() % number_of_players;
+  int trade_winner = -1;
+  int minimum_bet = -1;
+  
   while(true)
   {
     do
@@ -472,17 +544,21 @@ void game_cycle()
       }
     } while ( check.size() != 0 );
     
-    deck_distribution();
-    trade();
-    booking();
+    deck_distribution();  //should return talon somehow
+    trade_winner = trade(trade_first, minimum_bet);
+    show_talon();
+    booking(trade_winner);
     vists();
     moves();
     offers();
     result();
     cleaning();
     
+    if (trade_first == number_of_players - 1)
+      number_of_players = 0;
+    else
+      trade_first++;
   }
-  
   
 }
 
@@ -560,7 +636,7 @@ void server(boost::asio::io_service &io_service, unsigned short port)
         clients.connected.push_back(true);
         inner_number = clients.id.size() - 1;
       }
-      active_players.push_back(inner_number);
+      active_players.at(inner_number) = inner_number; //this is totally awful. must be fixed. 
       server_lock.unlock();
     }
     else
@@ -589,13 +665,6 @@ void server(boost::asio::io_service &io_service, unsigned short port)
    */ 
 
     std::cout << "server __LINE__ = " << __LINE__ << std::endl;
-//     std::cout << "sock.is_open() : " << sock.is_open() << std::endl;
-//     sock.shutdown(boost::asio::ip::tcp::socket::shutdown_send);
-//     std::cout << "server __LINE__ = " << __LINE__ << std::endl;
-//     sock.close();
-//     std::cout << "sock.is_open() : " << sock.is_open() << std::endl;
-//     std::thread(session, inner_number).detach(); //somebody connected; read what they sent to us
-//     std::thread(session, std::ref(clients), std::ref(message), std::ref(updater)).detach(); //somebody connected; read what they sent to us
   }
 }
 

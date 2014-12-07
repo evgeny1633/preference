@@ -23,7 +23,8 @@ std::string make_block(std::string block)
 {
   if (block.size() == 0)
     return "";
-  
+  if ( block.size() % _BLOCK_LENGTH_ == 0 )
+    return block;
   if ( block.size() + _BLOCK_LENGTH_ - ( block.size() % _BLOCK_LENGTH_ ) < max_buffer_length )
     block.resize ( block.size() + _BLOCK_LENGTH_ - ( block.size() % _BLOCK_LENGTH_ ), _EMPTY_SYMBOL_);  
   else

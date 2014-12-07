@@ -123,11 +123,9 @@ int client(char* host, char* port, int int_client_id)
 //     std::cout << "request = \""<< request << "\"" << std::endl;
     boost::asio::write(_sock_, boost::asio::buffer(request, (size_t)std::strlen(request)));
     
-//     std::thread(cin_sender, std::ref(_sock_)).detach(); 
     std::thread ([host, port]{chat_sender(host, port);}).detach(); 
     while(true)
     {
-//       size_t reply_length = 
       boost::asio::read(_sock_,boost::asio::buffer(reply, max_buffer_length));
       try
       {
@@ -182,7 +180,7 @@ int main(int argc, char* argv[])
   port = argv[2];
   srand (time(NULL));  // initialize random seed: 
 //   int_client_id = 18; 
-  int_client_id = (int) (rand() % 30 + 3) ; //range 3-32
+  int_client_id = rand() % 30 + 3 ; //range 3-32
   std::cout << "client_id = " << int_client_id << std::endl;
   death_handler();
   int client_return;
