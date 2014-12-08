@@ -32,7 +32,7 @@ std::string make_block(std::string block)
   return block; // "[____][____][____][__" -> "[____][____][____][____]"  fill the rest of the block at the end with the "_EMPTY_SYMBOL_" (don't forget to compare it with the max_buffer_length)
 }
 
-std::string make_block(int block) // really, why do we need this ? ... just let it be ...
+std::string make_block(int block)
 {
   std::stringstream ss;
   ss << block;
@@ -50,6 +50,22 @@ std::string make_client_id(int int_client_id)
 }
 
 std::string make_message(int int_client_id, std::string head, std::string message = "")
+{
+  std::stringstream ss;
+  std::string client_id = make_client_id(int_client_id);
+  ss << client_id;
+  for (int i = 0; i < _ID_LENGTH_ - (int)client_id.length(); i++)
+    ss << _EMPTY_SYMBOL_;
+  head = make_head(head);
+  ss << head;
+  for (int i = 0; i < _HEAD_LENGTH_ - (int)head.length(); i++)
+    ss << _EMPTY_SYMBOL_;
+
+  ss << make_block(message);
+  return ss.str();
+}
+
+std::string make_message(int int_client_id, std::string head, int message)
 {
   std::stringstream ss;
   std::string client_id = make_client_id(int_client_id);

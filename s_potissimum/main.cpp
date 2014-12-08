@@ -376,10 +376,8 @@ void deck_distribution()
 //check if certain client is alive
 std::string check_one(int inner_numer)
 {
-  std::stringstream ss;
-  ss.str(""); ss << make_client_id(inner_numer) << make_head("alive");
   std::lock_guard<std::mutex> check_one_lock(clients_mutex);
-  return send_receive(inner_numer, ss.str());
+  return send_receive(inner_numer, make_message(inner_numer, "alive"));
 }
 
 /*
@@ -398,21 +396,17 @@ void check_one_endless(int inner_numer)
 std::vector<int> check_alive()
 {
   std::vector<int> check;
-  std::stringstream ss;
-  std::string message;
   std::cout << "check_alive __LINE__ = " << __LINE__ << std::endl;
   std::lock_guard<std::mutex> check_alive_active_players_lock(active_players_mutex);
   std::lock_guard<std::mutex> check_alive_clients_lock(clients_mutex);
   for (auto i_active = active_players.begin(); i_active != active_players.end(); ++i_active)
   {
-    ss.str(""); ss << make_client_id(clients.id.at(*i_active)) << make_head("alive");
+    if (*i_active < 0)      continue;
+    message = send_receive(*i_active, make_message(clients.id.at(*i_active), "alive"));
     std::cout << "check_alive __LINE__ = " << __LINE__ << std::endl;
-    message = send_receive(*i_active, ss.str());
-    std::cout << "check_alive __LINE__ = " << __LINE__ << std::endl;
-    if (message != ss.str())
+    if (message != make_message(clients.id.at(*i_active), "alive"))
       check.push_back(*i_active);
   }
-  std::cout << "check_alive __LINE__ = " << __LINE__ << std::endl;
   return check;
 }
 
@@ -422,10 +416,10 @@ int check_active(int number = 3)
 }
 
 int trade(int first, int &minimum_bet = -1)   // return the number of player who made the booking or -1 if there is raspass
-{
+{   // minimum_bet or minimum_bet + 1  ?
   std::cout << "trade    __LINE__ = " << __LINE__ << std::endl; 
   std::unique_lock<std::mutex> trade_clients_lock(clients_mutex, std::defer_lock);  //clever lock
-  std::lock_guard <std::mutex> trade_active_players_lock(active_players_mutex, std::defer_lock); 
+  std::lock_guard <std::mutex> trade_active_players_lock(active_players_mutex);     //stupid lock
   std::string message;
   
   int bet_number = 0;
@@ -453,8 +447,8 @@ int trade(int first, int &minimum_bet = -1)   // return the number of player who
         if (*iter != 0) //check how many people have bets; need to be 0 or 1 to end the trade
           bet_number++;
         
-      if (bet_number == 0)      //raspass
-        return -1;              //raspass
+      if (bet_number == 0)      /*raspass*/
+        return -1;              /*raspass*/
       else if (bet_number == 1) //booking was made
         for (auto iter = clients.bet.begin(); iter != clients.bet.end(); ++iter)
           if (*iter != 0)
@@ -464,19 +458,20 @@ int trade(int first, int &minimum_bet = -1)   // return the number of player who
       continue;
     }
     
-    another_try: //in case of exception in send_receive try another time (below)
+    trade_another_try: //in case of exception in send_receive try another time (see below)
     message = make_block("minimumbet") + make_block(minimum_bet);
     message_sender(*iterator, make_message(*iterator, "trade", message));
-    message = send_receive(*iterator, make_message(*iterator, "trade", "yourturn"));  //here must be some check if the client is alive (see below) and here must be some check to kill the waiting after some time...probably
+    message = send_receive(*iterator, make_message(*iterator, "trade", "yourturn"));  //I expect bet in the reply
+    //here must be some check if the client is alive (see below) and here must be some check to kill the waiting after some time...probably
     if (message == "exception") //in case of exception in send_receive try again
     {
       std::cerr << "exception trade __LINE__ " << __LINE__  << std::endl;
-      goto another_try;
+      goto trade_another_try;
     }
     
     for (auto it = clients.connected.begin(); it != clients.connected.end(); ++it)
       if (*it)
-        message_sender(*iterator, message);//send received message to everybody
+        message_sender(it - clients.connected.begin(), message);//send received message to everybody
       
     std::cout << atoi((get_block(message)).c_str()) << std::endl;
     clients.bet.at(*iterator) = atoi((get_block(message)).c_str());
@@ -487,12 +482,43 @@ int trade(int first, int &minimum_bet = -1)   // return the number of player who
     
   }
 }
-void show_talon() {std::cout << "booking  __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
-void booking(int trade_winner, int minimum_bet)
+
+void show_talon() {std::cout << "show_talon  __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+
+int booking(int trade_winner, int minimum_bet)
 {
-  std::cout << "booking  __LINE__ = " << __LINE__ << std::endl; usleep(5e6);
+  if (trade_winner == -1) /*raspass*/
+    return ; //-1;
   
+  std::lock_guard <std::mutex> trade_active_players_lock(clients_mutex);     //stupid lock
   
+  for (auto it = clients.connected.begin(); it != clients.connected.end(); ++it)
+      if (*it)
+        message_sender(it - clients.connected.begin(), make_message(trade_winner, "booking", minimum_bet));  //tell everybody who is booking
+  
+  std::string message;
+  std::cout << "booking  __LINE__ = " << __LINE__ << std::endl;
+  
+  booking_another_try:
+  message = send_receive(*iterator, make_message(trade_winner, "booking", "decision"));  //I expect bet in the reply
+  //here must be some check if the client is alive (see below) and here must be some check to kill the waiting after some time...probably
+  if (message == "exception")
+  {
+      std::cerr << "exception booking __LINE__ " << __LINE__  << std::endl;
+      goto booking_another_try;
+  }
+  for (auto it = clients.connected.begin(); it != clients.connected.end(); ++it)
+    if (*it)
+      message_sender(it - clients.connected.begin(), message);  //tell everybody who is booking
+      
+  if (get_block(message) == "withoutthree")
+  { //don't do calculations here. we should do them in the more appropriate place
+    std::cout << "booking; player " << clients.id.at(trade_winner) << " went without three from bet " << minimum_bet << std::endl;
+    return -3;
+  }
+  
+  std::cout << "booking; atoi( get_block(message).c_str() ) = " << atoi( get_block(message).c_str() ) << std::endl;
+  return atoi( get_block(message).c_str() ); //this should be a final bet (int > 0)
   
 }
 void vists()      {std::cout << "vists    __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
@@ -521,9 +547,10 @@ void game_cycle()
   }
   
   int number_of_players = 3;
-  int trade_first = 0; // = rand() % number_of_players;
-  int trade_winner = -1;
+  int trade_first = 0; // = rand() % number_of_players; //who will trade first
+  int trade_winner;
   int minimum_bet = -1;
+  int final_bet;
   
   while(true)
   {
@@ -543,21 +570,36 @@ void game_cycle()
         usleep(5e6);
       }
     } while ( check.size() != 0 );
+    final_bet = -1;
+    trade_winner = -1;
     
     deck_distribution();  //should return talon somehow
-    trade_winner = trade(trade_first, minimum_bet);
-    show_talon();
-    booking(trade_winner);
-    vists();
+    trade_winner = trade(trade_first, minimum_bet); //done
+    show_talon(); // not done
+    final_bet = booking(trade_winner, minimum_bet);  //simple
+    if (final_bet == -3)  //skip the moves
+    {
+      result();  //god knows what we should pass there...
+      cleaning();
+      if (trade_first == number_of_players - 1) trade_first = 0; //who will trade first
+      else                                      trade_first++;   //who will trade first
+      continue;
+    }
+      
+    if (final_bet > 0)  // if (final_bet < 0) -> raspass
+    {
+      vists();
+    }
+    
+    //offers.detach
     moves();
     offers();
-    result();
+    //offers.join
+    result(); //god knows what we should pass there...
     cleaning();
     
-    if (trade_first == number_of_players - 1)
-      number_of_players = 0;
-    else
-      trade_first++;
+    if (trade_first == number_of_players - 1) trade_first = 0; //who will trade first
+    else                                      trade_first++;   //who will trade first
   }
   
 }
