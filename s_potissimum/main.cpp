@@ -63,7 +63,7 @@ void handler_action(int signal_number) //this function will be called when serve
     if (*iterator)
       message_sender(iterator - clients.connected.begin(), make_message(0, "service", "serverwaskilled"));
     
-  std::cout << std::endl << "Server was killed. Bye !" << std::endl << std::endl;
+  std::cout << std::endl << "Server was killed with signal " << signal_number << ". Have a nice day !" << std::endl << std::endl;
   exit(10);
 }
 
@@ -85,7 +85,6 @@ void iffunction(int inner_number, std::string &input_message)
     return;
   std::stringstream ss;
   std::string message = input_message;
-  char data[max_buffer_length] = {};
   
   int block_number = (input_message.size() - _ID_LENGTH_ - _HEAD_LENGTH_) / _BLOCK_LENGTH_ + 2; 
   std::vector<std::string> block;
@@ -299,9 +298,12 @@ void current_bribe(){}
 void deck_distribution()
 {
 //   std::cout << "deck_distribution __LINE__ = " << __LINE__ << std::endl;
+  std::unique_lock<std::mutex> deck_distribution_lock_active_players(active_players_mutex, std::defer_lock);
+  deck_distribution_lock_active_players.lock();
   if(active_players.at(0) == -1 || active_players.at(1) == -1 || active_players.at(2) == -1 )
   {
     std::cout << "distribution: wrong amount of players " << std::endl;
+    deck_distribution_lock_active_players.unlock();
     return;
   }
   
@@ -312,7 +314,7 @@ void deck_distribution()
   std::random_shuffle(deck.begin(), deck.end());
   std::random_shuffle(deck.begin(), deck.end());
   
-  std::lock_guard<std::mutex> deck_distribution_lock(active_players_mutex);
+  std::unique_lock<std::mutex> deck_distribution_lock_clients(clients_mutex, std::defer_lock);
   
   std::vector<std::vector<card>> d_player;
   std::vector<card> talon;
@@ -336,7 +338,8 @@ void deck_distribution()
       }
     }
   }
-  deck_distribution_lock.lock();
+  deck_distribution_lock_active_players.lock();
+  deck_distribution_lock_clients.lock();
   for (auto i_d_player = d_player.begin(); i_d_player != d_player.end(); i_d_player++)
   {
     ss.str(""); ss << "\nd_player.at(" << i_d_player - d_player.begin() << "):";// << (*i_d_player);
@@ -348,7 +351,8 @@ void deck_distribution()
       message_sender(active_players.at(i_d_player - d_player.begin()), ss.str());
     }
   }
-  deck_distribution_lock.unlock();
+  deck_distribution_lock_clients.unlock();
+  deck_distribution_lock_active_players.unlock();
   
   output("\ntalon:"); 
   for (auto it = talon.begin(); it != talon.end(); ++it) output((*it).name);
@@ -397,6 +401,7 @@ std::vector<int> check_alive()
 {
   std::vector<int> check;
   std::cout << "check_alive __LINE__ = " << __LINE__ << std::endl;
+  std::string message;
   std::lock_guard<std::mutex> check_alive_active_players_lock(active_players_mutex);
   std::lock_guard<std::mutex> check_alive_clients_lock(clients_mutex);
   for (auto i_active = active_players.begin(); i_active != active_players.end(); ++i_active)
@@ -415,7 +420,7 @@ int check_active(int number = 3)
   return number - active_players.size();
 }
 
-int trade(int first, int &minimum_bet = -1)   // return the number of player who made the booking or -1 if there is raspass
+int trade(int first, int &minimum_bet)   // return the number of player who made the booking or -1 if there is raspass
 {   // minimum_bet or minimum_bet + 1  ?
   std::cout << "trade    __LINE__ = " << __LINE__ << std::endl; 
   std::unique_lock<std::mutex> trade_clients_lock(clients_mutex, std::defer_lock);  //clever lock
@@ -488,7 +493,7 @@ void show_talon() {std::cout << "show_talon  __LINE__ = " << __LINE__ << std::en
 int booking(int trade_winner, int minimum_bet)
 {
   if (trade_winner == -1) /*raspass*/
-    return ; //-1;
+    return -1;
   
   std::lock_guard <std::mutex> trade_active_players_lock(clients_mutex);     //stupid lock
   
@@ -500,7 +505,7 @@ int booking(int trade_winner, int minimum_bet)
   std::cout << "booking  __LINE__ = " << __LINE__ << std::endl;
   
   booking_another_try:
-  message = send_receive(*iterator, make_message(trade_winner, "booking", "decision"));  //I expect bet in the reply
+  message = send_receive(trade_winner, make_message(trade_winner, "booking", "decision"));  //I expect bet in the reply
   //here must be some check if the client is alive (see below) and here must be some check to kill the waiting after some time...probably
   if (message == "exception")
   {

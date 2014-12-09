@@ -10,10 +10,12 @@ QT += widgets
 # Input
 HEADERS += statistics.h widget.h log.h \
     ../include/include.h \
-    ../include/updater.h
+    ../include/updater.h \
+    player.h
 SOURCES += main.cpp statistics.cpp widget.cpp log.cpp \
     ../include/updater.cpp \
-    ../include/common_functions.cpp
+    ../include/common_functions.cpp \
+    player.cpp
 RESOURCES += avatars.qrc
 
 FORMS += \
