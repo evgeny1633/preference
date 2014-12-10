@@ -4,6 +4,7 @@
 
 #include "../include/include.h"
 #include "../include/common_functions.cpp"
+#include "player.h"
 
 #ifdef __QT__
 #include <QApplication>
@@ -13,27 +14,30 @@
 #include "../include/updater.h"
 #endif
 
-#define _sock_ (clients.socket.at(inner_number))  //this is socket to send messages to the particular client
-#define _id_ (clients.id.at(inner_number))        //what ? //inner_number -- number of element in clients vector, everywhere.
+#define _sock_ ((clients.at(inner_number)).get_socket())  //this is socket to send messages to the particular client
+#define _id_ (clients.at(inner_number).id)        //what ? //inner_number -- number of element in clients vector, everywhere.
+// #define _sock_ (clients.socket.at(inner_number))  //this is socket to send messages to the particular client
+// #define _id_ (clients.id.at(inner_number))        //what ? //inner_number -- number of element in clients vector, everywhere.
 
 // using boost::asio::ip::tcp;
 using namespace std;
-struct clients_list
-{ 
-  std::vector <int> id;
-  std::vector <boost::asio::ip::tcp::socket> socket;
-  std::vector <bool> connected;
-  std::vector <bool> playing;
-  std::vector <int> version;
-  std::vector <int> bet;
-} clients; //it's impossible to create vector of clients, because it's impossible to declare boost::asio::ip::tcp::socket inside it
+// struct clients_list
+// { 
+//   std::vector <int> id;
+//   std::vector <boost::asio::ip::tcp::socket> socket;
+//   std::vector <bool> connected;
+//   std::vector <bool> playing;
+//   std::vector <int> version;
+//   std::vector <int> bet;
+// } clients; //it's impossible to create vector of clients, because it's impossible to declare boost::asio::ip::tcp::socket inside it
 
+std::vector<player> clients;
 
 #ifdef __QT__
 Updater updater;//class to update log window via QApplication::connect
 #endif
 
-std::vector <int> active_players = {-1, -1, -1};
+std::vector <int> active_players;// = {-1, -1, -1};
 std::mutex clients_mutex;        // mutex to avoid undefined behavior with "clients".        some threads can read\write into it simultaniously.
 std::mutex active_players_mutex; // mutex to avoid undefined behavior with "active_players". some threads can read\write into it simultaniously.
 
@@ -59,9 +63,9 @@ void output (std::string string, bool with_new_line)
 
 void handler_action(int signal_number) //this function will be called when server is killed or receive certain SIGnals
 {
-  for (auto iterator = clients.connected.begin(); iterator != clients.connected.end(); ++iterator)
-    if (*iterator)
-      message_sender(iterator - clients.connected.begin(), make_message(0, "service", "serverwaskilled"));
+  for (auto iterator = clients.begin(); iterator != clients.end(); ++iterator)
+    if ((*iterator).connected)
+      message_sender(iterator - clients.begin(), make_message(0, "service", "serverwaskilled"));
     
   std::cout << std::endl << "Server was killed with signal " << signal_number << ". Have a nice day !" << std::endl << std::endl;
   exit(10);
@@ -116,13 +120,13 @@ void iffunction(int inner_number, std::string &input_message)
     ss.str("");
     ss << "player " << get_client_id(message) << "[" << ctiming() << "]: " << get_chat_message(message);
     output(ss.str());
-    for (auto iterator = clients.connected.begin(); iterator != clients.connected.end(); ++iterator)
+    for (auto iterator = clients.begin(); iterator != clients.end(); ++iterator)
     {
-      if (*iterator)
+      if ((*iterator).connected)
       {
         ss.str("");
         ss << make_client_id(get_int_client_id(message)) << make_head("chat") << "player " << get_client_id(message) << "[" << ctiming() << "]: " << get_chat_message(message);
-        message_sender(iterator - clients.connected.begin(), ss.str());
+        message_sender(iterator - clients.begin(), ss.str());
       }
     }    //then block[2] is playername
   }
@@ -132,8 +136,8 @@ void iffunction(int inner_number, std::string &input_message)
     if( block.at(2) == "clientwaskilled" )
     {
       std::cout << "Client # " << block.at(0) << " was killed. Let's forget about him..." << std::endl;
-      std::cout << "inner_number = " << inner_number << ";\tclients.connected.size() = " << clients.connected.size() << std::endl;
-      clients.connected.at(inner_number) = false;
+      std::cout << "inner_number = " << inner_number << ";\tclients.size() = " << clients.size() << std::endl;
+      clients.at(inner_number).connected = false;
       std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
       for (auto iterator = active_players.begin(); iterator != active_players.end(); ++iterator)
       {
@@ -154,6 +158,7 @@ void iffunction(int inner_number, std::string &input_message)
 }
 
 //probably useless...
+/*
 void session(int inner_number)
 {
 //   std::cout << "session __LINE__ = " << __LINE__ << std::endl;
@@ -198,9 +203,9 @@ void session(int inner_number)
     std::cerr << "Exception in session: " << e.what() << "\n";
     session_lock.unlock();
   }
-}
-
+}*/
 //send messages from cin directly
+/*
 void test_message_sender(int inner_number, std::string message, bool test)
 {
 //   std::cout << "test_sender __LINE__ = " << __LINE__ << std::endl;
@@ -244,7 +249,7 @@ void test_message_sender(int inner_number, std::string message, bool test)
       clients_mutex.lock();
       boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
       clients_mutex.unlock();
-      std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.id.at(inner_number) << std::endl;
+      std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.at(inner_number).id << std::endl;
     }
     catch (std::exception& e)
     {
@@ -253,27 +258,30 @@ void test_message_sender(int inner_number, std::string message, bool test)
       clients_mutex.unlock();
     }
   }
-}
+}*/
 
 //send message to the client
 void message_sender(int inner_number, std::string message)
-{       //probably we don't need mutex here, because ..... stop, why ? because mutex will be out there
+{  
+  /*      //probably we don't need mutex here, because ..... stop, why ? because mutex will be out there
   char data[max_buffer_length] = {};      
   try
   {
     std::strcpy (data, message.c_str());
     boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
-    std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.id.at(inner_number) << std::endl;
+    std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.at(inner_number).id << std::endl;
   }
   catch (std::exception& e)
   {
     std::cerr << "Exception in message sender: " << e.what() << "\n";
-  }
+  }*/
+  clients.at(inner_number).write(message);
 }
 
 //send message and wait for the answer. dangerous, will be fixed. can wait forever. 
 std::string send_receive(int inner_number, std::string message)
-{
+{  
+  /*
   char data[max_buffer_length] = {};      
   try
   {
@@ -281,15 +289,16 @@ std::string send_receive(int inner_number, std::string message)
     std::strcpy (data, message.c_str());
     boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
 //     std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.id.at(inner_number) << std::endl;
-    _sock_.read_some(boost::asio::buffer(data), error); //read message
+    _sock_->read_some(boost::asio::buffer(data), error); //read message
+//     _sock_.read_some(boost::asio::buffer(data), error); //read message
     message = data;
   }
   catch (std::exception& e)
   {
     std::cerr << "Exception in send_receive: " << e.what() << "\n";
     return "exception";
-  }
-  return message;
+  }*/
+  return clients.at(inner_number).send_receive(message);
 }
 
 void current_bribe(){}
@@ -407,9 +416,9 @@ std::vector<int> check_alive()
   for (auto i_active = active_players.begin(); i_active != active_players.end(); ++i_active)
   {
     if (*i_active < 0)      continue;
-    message = send_receive(*i_active, make_message(clients.id.at(*i_active), "alive"));
+    message = send_receive(*i_active, make_message(clients.at(*i_active).id, "alive"));
     std::cout << "check_alive __LINE__ = " << __LINE__ << std::endl;
-    if (message != make_message(clients.id.at(*i_active), "alive"))
+    if (message != make_message(clients.at(*i_active).id, "alive"))
       check.push_back(*i_active);
   }
   return check;
@@ -430,10 +439,10 @@ int trade(int first, int &minimum_bet)   // return the number of player who made
   int bet_number = 0;
   
   trade_clients_lock.lock();
-  clients.bet.resize(clients.connected.size(), -1);
-  for (auto it = clients.connected.begin(); it != clients.connected.end(); ++it)
-    if (*it)
-      clients.bet.at(it - clients.connected.begin()) = -1;  //reset them all
+//   clients.bet.resize(clients.connected.size(), -1);
+  for (auto it = clients.begin(); it != clients.end(); ++it)
+    if ((*it).connected)
+      (*it).bet = -1;  //reset them all
   trade_clients_lock.unlock();
   
   for (auto iterator = active_players.begin() + first; true /*iterator != active_players.begin() + first - 1*/; iterator++)  
@@ -445,19 +454,19 @@ int trade(int first, int &minimum_bet)   // return the number of player who made
     }
     
     trade_clients_lock.lock();
-    if (clients.bet.at(*iterator) == 0) // "pass" -> 0 ; bet > 0; no decision -> -1
+    if (clients.at(*iterator).bet == 0) // "pass" -> 0 ; bet > 0; no decision -> -1
     {
       bet_number = 0;
-      for (auto iter = clients.bet.begin(); iter != clients.bet.end(); ++iter)  
-        if (*iter != 0) //check how many people have bets; need to be 0 or 1 to end the trade
+      for (auto iter = clients.begin(); iter != clients.end(); ++iter)  
+        if ((*iter).bet != 0) //check how many people have bets; need to be 0 or 1 to end the trade
           bet_number++;
         
       if (bet_number == 0)      /*raspass*/
         return -1;              /*raspass*/
       else if (bet_number == 1) //booking was made
-        for (auto iter = clients.bet.begin(); iter != clients.bet.end(); ++iter)
-          if (*iter != 0)
-            return iter - clients.bet.begin(); // number of player who made the booking;
+        for (auto iter = clients.begin(); iter != clients.end(); ++iter)  
+          if ((*iter).bet != 0)
+            return iter - clients.begin(); // number of player who made the booking;
           
       trade_clients_lock.unlock();
       continue;
@@ -474,14 +483,14 @@ int trade(int first, int &minimum_bet)   // return the number of player who made
       goto trade_another_try;
     }
     
-    for (auto it = clients.connected.begin(); it != clients.connected.end(); ++it)
-      if (*it)
-        message_sender(it - clients.connected.begin(), message);//send received message to everybody
+    for (auto it = clients.begin(); it != clients.end(); ++it)
+      if ((*it).connected)
+        message_sender(it - clients.begin(), message);//send received message to everybody
       
     std::cout << atoi((get_block(message)).c_str()) << std::endl;
-    clients.bet.at(*iterator) = atoi((get_block(message)).c_str());
-    if (minimum_bet < clients.bet.at(*iterator))
-      minimum_bet = clients.bet.at(*iterator);
+    clients.at(*iterator).bet = atoi((get_block(message)).c_str());
+    if (minimum_bet < clients.at(*iterator).bet)
+      minimum_bet = clients.at(*iterator).bet;
     
     trade_clients_lock.unlock();
     
@@ -497,9 +506,9 @@ int booking(int trade_winner, int minimum_bet)
   
   std::lock_guard <std::mutex> trade_active_players_lock(clients_mutex);     //stupid lock
   
-  for (auto it = clients.connected.begin(); it != clients.connected.end(); ++it)
-      if (*it)
-        message_sender(it - clients.connected.begin(), make_message(trade_winner, "booking", minimum_bet));  //tell everybody who is booking
+  for (auto it = clients.begin(); it != clients.end(); ++it)
+    if ((*it).connected)
+      message_sender(it - clients.begin(), make_message(trade_winner, "booking", minimum_bet));  //tell everybody who is booking
   
   std::string message;
   std::cout << "booking  __LINE__ = " << __LINE__ << std::endl;
@@ -512,13 +521,13 @@ int booking(int trade_winner, int minimum_bet)
       std::cerr << "exception booking __LINE__ " << __LINE__  << std::endl;
       goto booking_another_try;
   }
-  for (auto it = clients.connected.begin(); it != clients.connected.end(); ++it)
-    if (*it)
-      message_sender(it - clients.connected.begin(), message);  //tell everybody who is booking
+  for (auto it = clients.begin(); it != clients.end(); ++it)
+    if ((*it).connected)
+      message_sender(it - clients.begin(), message);  //tell everybody who is booking
       
   if (get_block(message) == "withoutthree")
   { //don't do calculations here. we should do them in the more appropriate place
-    std::cout << "booking; player " << clients.id.at(trade_winner) << " went without three from bet " << minimum_bet << std::endl;
+    std::cout << "booking; player " << clients.at(trade_winner).id << " went without three from bet " << minimum_bet << std::endl;
     return -3;
   }
   
@@ -636,7 +645,7 @@ void server(boost::asio::io_service &io_service, unsigned short port)
 //   deck_distribution();
   std::cout << "port = " << port << std::endl;
   boost::asio::ip::tcp::acceptor acceptor(io_service, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port));
-  std::thread([]{ test_message_sender();}).detach(); //cin sender
+//   std::thread([]{ test_message_sender();}).detach(); //cin sender
   std::thread(game_cycle).detach(); 
   for (;;)
   {
@@ -662,29 +671,35 @@ void server(boost::asio::io_service &io_service, unsigned short port)
       id = get_int_client_id(message);
       std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
       server_lock.lock();
-      for (auto iterator = clients.id.begin(); iterator != clients.id.end(); ++iterator)
+      for (auto iterator = clients.begin(); iterator != clients.end(); ++iterator)
       {
-        if (id == (*iterator))
+        if (id == (*iterator).id)
         {
           ss.str(""); ss << "Client # " << id << " reconnected"; output(ss.str());
           reconnected = true;
-          inner_number = iterator - clients.id.begin();
-          clients.socket.at(inner_number) = std::move(sock);
-          clients.connected.at(inner_number) = true;
-//           std::cout << "clients.socket.at(" << inner_number << ") = " << &(clients.socket.at(inner_number)) << std::endl;
+          inner_number = iterator - clients.begin();
+          clients.at(inner_number).reconnect(std::move(sock));
+//           clients.at(inner_number).connected = true;
         }
       }
 
       if (!reconnected)
       {
         std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
-        clients.id.push_back(id);
-        clients.socket.push_back(std::move(sock));
-        clients.connected.push_back(true);
-        inner_number = clients.id.size() - 1;
+        clients.resize(clients.size() + 1);
+        std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
+        inner_number = clients.size() - 1;
+        std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
+        (clients.at(inner_number)).connect(std::move(sock), id);
+        std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
       }
+      std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
+      if (inner_number >= active_players.size())
+        active_players.resize(inner_number + 1);
       active_players.at(inner_number) = inner_number; //this is totally awful. must be fixed. 
+      std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
       server_lock.unlock();
+      std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
     }
     else
     {
