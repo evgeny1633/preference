@@ -14,7 +14,7 @@
 #include "../include/updater.h"
 #endif
 
-#define _sock_ ((clients.at(inner_number)).get_socket())  //this is socket to send messages to the particular client
+// #define _sock_ ((clients.at(inner_number)).get_socket())  //this is socket to send messages to the particular client
 #define _id_ (clients.at(inner_number).id)        //what ? //inner_number -- number of element in clients vector, everywhere.
 // #define _sock_ (clients.socket.at(inner_number))  //this is socket to send messages to the particular client
 // #define _id_ (clients.id.at(inner_number))        //what ? //inner_number -- number of element in clients vector, everywhere.
@@ -216,7 +216,6 @@ void test_message_sender(int inner_number, std::string message, bool test)
   {
     try
     {
-      char data[max_buffer_length] = {};      
       if (test)
       {
         std::cout << "Enter inner number... " ;
@@ -245,11 +244,10 @@ void test_message_sender(int inner_number, std::string message, bool test)
           ss << (rand() % 9); //rand from 0 to 9
         message = ss.str();
       }
-      std::strcpy (data, message.c_str());
       clients_mutex.lock();
-      boost::asio::write(_sock_, boost::asio::buffer(data, max_buffer_length));    //send message back to client
+      clients.write(message)
       clients_mutex.unlock();
-      std::cout << "Message \"" << data << "\" succesfully sent to client with id " << clients.at(inner_number).id << std::endl;
+      std::cout << "Message \"" << message << "\" succesfully sent to client with id " << clients.at(inner_number).id << std::endl;
     }
     catch (std::exception& e)
     {
@@ -258,8 +256,8 @@ void test_message_sender(int inner_number, std::string message, bool test)
       clients_mutex.unlock();
     }
   }
-}*/
-
+}
+*/
 //send message to the client
 void message_sender(int inner_number, std::string message)
 {  
@@ -685,21 +683,15 @@ void server(boost::asio::io_service &io_service, unsigned short port)
 
       if (!reconnected)
       {
-        std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
         clients.resize(clients.size() + 1);
-        std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
         inner_number = clients.size() - 1;
         std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
         (clients.at(inner_number)).connect(std::move(sock), id);
-        std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
       }
-      std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
       if (inner_number >= active_players.size())
         active_players.resize(inner_number + 1);
       active_players.at(inner_number) = inner_number; //this is totally awful. must be fixed. 
-      std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
       server_lock.unlock();
-      std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
     }
     else
     {

@@ -25,6 +25,7 @@ public:
   int bet;
   bool connected;
   bool playing;
+  
   bool version;
   
 };
