@@ -116,6 +116,7 @@ int client(char* host, char* port, int int_client_id)
     boost::asio::ip::tcp::resolver resolver(io_service);
     boost::asio::connect(socket, resolver.resolve({host, port}));
     socket_for_read.push_back(std::move(socket));
+    std::cout << std::endl << "Successfully connected !" << std::endl;
 
     char reply[max_buffer_length];      
     char request[max_buffer_length];
@@ -160,7 +161,7 @@ int client(char* host, char* port, int int_client_id)
   }
   catch (std::exception& e)
   {
-    std::cerr << "Exception in client: \"" << e.what() << "\"" << std::endl;
+    std::cerr << "Exception in client: \"" << e.what() << "\"\r";// << std::endl;
     return 1;
   }
   
@@ -181,17 +182,24 @@ int main(int argc, char* argv[])
   srand (time(NULL));  // initialize random seed: 
 //   int_client_id = 18; 
   int_client_id = rand() % 30 + 3 ; //range 3-32
-  std::cout << "client_id = " << int_client_id << std::endl;
+  std::cout << std::endl
+            << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl
+            << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl
+            << "\tClient # " << int_client_id << " is started "   << std::endl
+            << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl
+            << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl
+            << std::endl;
   death_handler();
   int client_return;
-  std::cout << "trying to connect to host \"" << host << "\" on port " << port << std::endl;
+  int attempt_counter = 0;
+  std::cout << "Trying to connect to host \"" << host << "\" on port " << port << std::endl;
   while (true)
   {
     client_return = client(host, port, int_client_id);
     if (client_return != 0)
     {
       usleep(6e6);
-      std::cout << "trying to reconnect to host " << host << " on port " << port << std::endl;
+      std::cout << "Trying to reconnect to host " << host << " on port " << port << "; Attempt # " << ++attempt_counter << "...\t" ;//std::endl;
       continue;
     }
     break;

@@ -21,15 +21,6 @@
 
 // using boost::asio::ip::tcp;
 using namespace std;
-// struct clients_list
-// { 
-//   std::vector <int> id;
-//   std::vector <boost::asio::ip::tcp::socket> socket;
-//   std::vector <bool> connected;
-//   std::vector <bool> playing;
-//   std::vector <int> version;
-//   std::vector <int> bet;
-// } clients; //it's impossible to create vector of clients, because it's impossible to declare boost::asio::ip::tcp::socket inside it
 
 std::vector<player> clients;
 
@@ -37,9 +28,7 @@ std::vector<player> clients;
 Updater updater;//class to update log window via QApplication::connect
 #endif
 
-std::vector <int> active_players;// = {-1, -1, -1};
 std::mutex clients_mutex;        // mutex to avoid undefined behavior with "clients".        some threads can read\write into it simultaniously.
-std::mutex active_players_mutex; // mutex to avoid undefined behavior with "active_players". some threads can read\write into it simultaniously.
 
 void test_message_sender(int inner_number = 0, std::string message = "", bool test = true);
 void output (std::string string, bool with_new_line = true);
@@ -79,11 +68,9 @@ void death_handler()  //this function defines what SIGnals we should handle
   sigaction(SIGINT,  &action, NULL);  /* ctrl-c  */
 }
 
-
 //divide message into parts and decide what to do with the message
 void iffunction(int inner_number, std::string &input_message)
 {
-//   std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
   std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
   if (input_message.size() < _ID_LENGTH_ + _HEAD_LENGTH_)
     return;
@@ -130,6 +117,7 @@ void iffunction(int inner_number, std::string &input_message)
       }
     }    //then block[2] is playername
   }
+  
   if ( block.at(1) == "service" )
   {
     std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
@@ -138,18 +126,8 @@ void iffunction(int inner_number, std::string &input_message)
       std::cout << "Client # " << block.at(0) << " was killed. Let's forget about him..." << std::endl;
       std::cout << "inner_number = " << inner_number << ";\tclients.size() = " << clients.size() << std::endl;
       clients.at(inner_number).connected = false;
+      clients.at(inner_number).playing   = false;
       std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
-      for (auto iterator = active_players.begin(); iterator != active_players.end(); ++iterator)
-      {
-        std::cout << "iffunction __LINE__ = " << __LINE__ << std::endl;
-        std::cout << "inner_number = " << inner_number << ";\t*iterator = " << *iterator << std::endl;
-        if (inner_number == *iterator)
-        {
-          std::cout << "iterator - active_players.begin() = " << iterator - active_players.begin() << std::endl;
-          active_players.erase(iterator);
-          break;
-        }
-      }
     }
   }
   
@@ -305,12 +283,14 @@ void current_bribe(){}
 void deck_distribution()
 {
 //   std::cout << "deck_distribution __LINE__ = " << __LINE__ << std::endl;
-  std::unique_lock<std::mutex> deck_distribution_lock_active_players(active_players_mutex, std::defer_lock);
-  deck_distribution_lock_active_players.lock();
-  if(active_players.at(0) == -1 || active_players.at(1) == -1 || active_players.at(2) == -1 )
+  int count_players = 0;
+  for (auto playing_client = clients.begin(); playing_client != clients.end(); ++playing_client)
+    if ((*playing_client).playing)
+      count_players++;
+    
+  if(count_players != 3 && count_players != 4)
   {
     std::cout << "distribution: wrong amount of players " << std::endl;
-    deck_distribution_lock_active_players.unlock();
     return;
   }
   
@@ -323,7 +303,7 @@ void deck_distribution()
   
   std::unique_lock<std::mutex> deck_distribution_lock_clients(clients_mutex, std::defer_lock);
   
-  std::vector<std::vector<card>> d_player;
+  std::vector<std::vector<card>> d_player;  // 3 players with vector of cards
   std::vector<card> talon;
   d_player.resize(3);
   
@@ -333,11 +313,11 @@ void deck_distribution()
   std::cout << "deck_distribution __LINE__ = " << __LINE__ << ";\ttalon_place = " << talon_place << std::endl;
   
   for ( int i = 0; i < 32; )
-  {
+  {   //deck
     for (auto i_d_player = d_player.begin(); i_d_player != d_player.end(); i_d_player++)
-    {
-      (*i_d_player).push_back(deck.at(i++));
-      (*i_d_player).push_back(deck.at(i++));
+    { //2 cards to player and may be to talon
+      (*i_d_player).push_back(deck.at(i++));  //into the hand ; (*i_d_player) is vector of cards
+      (*i_d_player).push_back(deck.at(i++));  //into the hand ; (*i_d_player) is vector of cards
       if (i == talon_place)
       {
         talon.push_back(deck.at(i++));
@@ -345,21 +325,23 @@ void deck_distribution()
       }
     }
   }
-  deck_distribution_lock_active_players.lock();
   deck_distribution_lock_clients.lock();
-  for (auto i_d_player = d_player.begin(); i_d_player != d_player.end(); i_d_player++)
+  auto i_d_player = d_player.begin();
+  for (auto playing_client = clients.begin(); playing_client != clients.end(); ++playing_client)
   {
-    ss.str(""); ss << "\nd_player.at(" << i_d_player - d_player.begin() << "):";// << (*i_d_player);
-    output(ss.str());
+    if ((*playing_client).playing == false)
+      continue;
+    
+    ++i_d_player;
+    ss.str(""); ss << "\nd_player.at(" << i_d_player - d_player.begin() << "):"; output(ss.str());
     for (auto it = (*i_d_player).begin(); it != (*i_d_player).end(); ++it)     
     {
       output((*it).name);
-      ss.str(""); ss << make_client_id(active_players.at(i_d_player - d_player.begin())) << make_head("distribution") << make_block((*it).number);
-      message_sender(active_players.at(i_d_player - d_player.begin()), ss.str());
+      ss.str(""); ss << make_client_id(playing_client - clients.begin()) << make_head("distribution") << make_block((*it).number);
+      message_sender(playing_client - clients.begin(), ss.str()); //send cards to the players
     }
   }
   deck_distribution_lock_clients.unlock();
-  deck_distribution_lock_active_players.unlock();
   
   output("\ntalon:"); 
   for (auto it = talon.begin(); it != talon.end(); ++it) output((*it).name);
@@ -409,50 +391,69 @@ std::vector<int> check_alive()
   std::vector<int> check;
   std::cout << "check_alive __LINE__ = " << __LINE__ << std::endl;
   std::string message;
-  std::lock_guard<std::mutex> check_alive_active_players_lock(active_players_mutex);
   std::lock_guard<std::mutex> check_alive_clients_lock(clients_mutex);
-  for (auto i_active = active_players.begin(); i_active != active_players.end(); ++i_active)
+  for (auto playing_client = clients.begin(); playing_client != clients.end(); ++playing_client)
   {
-    if (*i_active < 0)      continue;
-    message = send_receive(*i_active, make_message(clients.at(*i_active).id, "alive"));
+    if ((*playing_client).playing == false)
+      continue;
+    message = send_receive(playing_client - clients.begin(), make_message((*playing_client).id, "alive"));
     std::cout << "check_alive __LINE__ = " << __LINE__ << std::endl;
-    if (message != make_message(clients.at(*i_active).id, "alive"))
-      check.push_back(*i_active);
+    if (message != make_message((*playing_client).id, "alive"))
+      check.push_back(playing_client - clients.begin());
   }
+  
   return check;
 }
 
 int check_active(int number = 3)
 {
-  return number - active_players.size();
+  int count_players = 0;
+  for (auto playing_client = clients.begin(); playing_client != clients.end(); ++playing_client)
+    if ((*playing_client).playing)
+      count_players++;
+    
+  return number - count_players;
 }
 
 int trade(int first, int &minimum_bet)   // return the number of player who made the booking or -1 if there is raspass
 {   // minimum_bet or minimum_bet + 1  ?
   std::cout << "trade    __LINE__ = " << __LINE__ << std::endl; 
   std::unique_lock<std::mutex> trade_clients_lock(clients_mutex, std::defer_lock);  //clever lock
-  std::lock_guard <std::mutex> trade_active_players_lock(active_players_mutex);     //stupid lock
   std::string message;
   
   int bet_number = 0;
+  int counter = 0;
   
   trade_clients_lock.lock();
-//   clients.bet.resize(clients.connected.size(), -1);
   for (auto it = clients.begin(); it != clients.end(); ++it)
     if ((*it).connected)
       (*it).bet = -1;  //reset them all
+      
+  auto playing_client = clients.begin();
+  while(true)
+  { 
+    if (playing_client == clients.end()) //should never be true
+      break;
+    ++playing_client;
+    if ((*playing_client).playing == false)
+      continue;
+    if (counter == first) // we shall start trade from this place
+      break;
+    counter++;
+  }
   trade_clients_lock.unlock();
   
-  for (auto iterator = active_players.begin() + first; true /*iterator != active_players.begin() + first - 1*/; iterator++)  
+  while(true)
   { //cycle from the particular place in the vector until the end of the trading
-    if (iterator == active_players.end())
+    trade_clients_lock.lock();
+    playing_client++;
+    if (playing_client == clients.end())
     {
-      iterator = active_players.begin();
+      playing_client = clients.begin();
       continue;
     }
     
-    trade_clients_lock.lock();
-    if (clients.at(*iterator).bet == 0) // "pass" -> 0 ; bet > 0; no decision -> -1
+    if ((*playing_client).bet == 0) // "pass" -> 0 ; bet > 0; no decision -> -1
     {
       bet_number = 0;
       for (auto iter = clients.begin(); iter != clients.end(); ++iter)  
@@ -460,11 +461,19 @@ int trade(int first, int &minimum_bet)   // return the number of player who made
           bet_number++;
         
       if (bet_number == 0)      /*raspass*/
+      {
+        trade_clients_lock.unlock();
         return -1;              /*raspass*/
+      }
       else if (bet_number == 1) //booking was made
+      {
         for (auto iter = clients.begin(); iter != clients.end(); ++iter)  
           if ((*iter).bet != 0)
+          {
+            trade_clients_lock.unlock();
             return iter - clients.begin(); // number of player who made the booking;
+          }
+      }
           
       trade_clients_lock.unlock();
       continue;
@@ -472,8 +481,8 @@ int trade(int first, int &minimum_bet)   // return the number of player who made
     
     trade_another_try: //in case of exception in send_receive try another time (see below)
     message = make_block("minimumbet") + make_block(minimum_bet);
-    message_sender(*iterator, make_message(*iterator, "trade", message));
-    message = send_receive(*iterator, make_message(*iterator, "trade", "yourturn"));  //I expect bet in the reply
+    message_sender(playing_client - clients.begin(), make_message(playing_client - clients.begin(), "trade", message));
+    message = send_receive(playing_client - clients.begin(), make_message(playing_client - clients.begin(), "trade", "yourturn"));  //I expect bet in the reply
     //here must be some check if the client is alive (see below) and here must be some check to kill the waiting after some time...probably
     if (message == "exception") //in case of exception in send_receive try again
     {
@@ -486,12 +495,11 @@ int trade(int first, int &minimum_bet)   // return the number of player who made
         message_sender(it - clients.begin(), message);//send received message to everybody
       
     std::cout << atoi((get_block(message)).c_str()) << std::endl;
-    clients.at(*iterator).bet = atoi((get_block(message)).c_str());
-    if (minimum_bet < clients.at(*iterator).bet)
-      minimum_bet = clients.at(*iterator).bet;
+    (*playing_client).bet = atoi((get_block(message)).c_str());
+    if (minimum_bet < (*playing_client).bet)
+      minimum_bet = (*playing_client).bet;
     
     trade_clients_lock.unlock();
-    
   }
 }
 
@@ -501,8 +509,6 @@ int booking(int trade_winner, int minimum_bet)
 {
   if (trade_winner == -1) /*raspass*/
     return -1;
-  
-  std::lock_guard <std::mutex> trade_active_players_lock(clients_mutex);     //stupid lock
   
   for (auto it = clients.begin(); it != clients.end(); ++it)
     if ((*it).connected)
@@ -593,8 +599,10 @@ void game_cycle()
     {
       result();  //god knows what we should pass there...
       cleaning();
-      if (trade_first == number_of_players - 1) trade_first = 0; //who will trade first
-      else                                      trade_first++;   //who will trade first
+      if (trade_first == number_of_players - 1) 
+        trade_first = 0; //who will trade first
+      else
+        trade_first++;   //who will trade first
       continue;
     }
       
@@ -607,6 +615,7 @@ void game_cycle()
     moves();
     offers();
     //offers.join
+    
     result(); //god knows what we should pass there...
     cleaning();
     
@@ -629,9 +638,13 @@ void game_cycle()
 void server(boost::asio::io_service &io_service, unsigned short port)
 {
 //   std::cout << "server __LINE__ = " << __LINE__ << std::endl;
-  std::cout << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-  std::cout << "Server is started " << std::endl;
-  std::cout << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
+  std::cout << std::endl
+            << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl
+            << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl
+            << "\tServer is started on port " << port             << std::endl
+            << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl
+            << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl
+            << std::endl;
   std::string message;
   std::string chat_message;
   std::stringstream ss;
@@ -663,6 +676,7 @@ void server(boost::asio::io_service &io_service, unsigned short port)
       continue;
     }
     std::cout << "server __LINE__ = " << __LINE__ << std::endl;
+    
     if (get_head(message) == "alive")
     {
       reconnected = false;
@@ -677,7 +691,6 @@ void server(boost::asio::io_service &io_service, unsigned short port)
           reconnected = true;
           inner_number = iterator - clients.begin();
           clients.at(inner_number).reconnect(std::move(sock));
-//           clients.at(inner_number).connected = true;
         }
       }
 
@@ -686,11 +699,8 @@ void server(boost::asio::io_service &io_service, unsigned short port)
         clients.resize(clients.size() + 1);
         inner_number = clients.size() - 1;
         std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
-        (clients.at(inner_number)).connect(std::move(sock), id);
+        clients.at(inner_number).connect(std::move(sock), id);
       }
-      if (inner_number >= active_players.size())
-        active_players.resize(inner_number + 1);
-      active_players.at(inner_number) = inner_number; //this is totally awful. must be fixed. 
       server_lock.unlock();
     }
     else
@@ -700,24 +710,6 @@ void server(boost::asio::io_service &io_service, unsigned short port)
       iffunction(inner_number, message);
     }
     
-/*    if (get_head(message) == "chat")
-    {
-      ss.str("");
-      ss << "player " << get_client_id(message) << "[" << ctiming() << "]: " << get_chat_message(message);
-      chat_message = ss.str();
-      output(chat_message);
-      for (auto iterator = clients.connected.begin(); iterator != clients.connected.end(); ++iterator)
-      {
-        if (*iterator)
-        {
-          ss.str("");
-          ss << get_client_id(message) << get_head(message) << chat_message;
-          message_sender(iterator - clients.connected.begin(), ss.str());
-        }
-      }
-    }
-   */ 
-
     std::cout << "server __LINE__ = " << __LINE__ << std::endl;
   }
 }
