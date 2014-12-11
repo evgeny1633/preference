@@ -2,8 +2,10 @@
 
 player::player()
 {
-  
-  
+  id = -1;
+  bet = -1;
+  connected = false;
+  playing = false;
 }
 
 void player::reconnect(boost::asio::ip::tcp::socket sock)

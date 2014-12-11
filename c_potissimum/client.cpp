@@ -127,7 +127,7 @@ int client(char* host, char* port, int int_client_id)
     std::thread ([host, port]{chat_sender(host, port);}).detach(); 
     while(true)
     {
-      boost::asio::read(_sock_,boost::asio::buffer(reply, max_buffer_length));
+      boost::asio::read(_sock_,boost::asio::buffer(reply, max_buffer_length));  //don't put this into try; it's lethal
       try
       {
         if ( get_head((std::string)reply) == "chat" )
@@ -155,7 +155,7 @@ int client(char* host, char* port, int int_client_id)
       }
       catch (std::exception& e)
       {
-        std::cerr << "while exception: " << e.what() << "\n";
+        std::cerr << "Exception in while: " << e.what() << "\n";
       }
     }
   }

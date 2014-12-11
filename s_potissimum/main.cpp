@@ -112,7 +112,7 @@ void iffunction(int inner_number, std::string &input_message)
       if ((*iterator).connected)
       {
         ss.str("");
-        ss << make_client_id(get_int_client_id(message)) << make_head("chat") << "player " << get_client_id(message) << "[" << ctiming() << "]: " << get_chat_message(message);
+        ss << make_client_id(get_int_client_id(message)) << make_head("chat") << "player " << get_client_id(message) << "[" << ctiming() << "]: " << get_chat_message(message); //here should be some changes somewhen: change player N to client.name or something
         message_sender(iterator - clients.begin(), ss.str());
       }
     }    //then block[2] is playername
@@ -314,8 +314,9 @@ void deck_distribution()
   
   for ( int i = 0; i < 32; )
   {   //deck
-    for (auto i_d_player = d_player.begin(); i_d_player != d_player.end(); i_d_player++)
+    for (auto i_d_player = d_player.begin(); i_d_player != d_player.end(); ++i_d_player)
     { //2 cards to player and may be to talon
+//       std::cout << i_d_player - d_player.begin() << std::endl;
       (*i_d_player).push_back(deck.at(i++));  //into the hand ; (*i_d_player) is vector of cards
       (*i_d_player).push_back(deck.at(i++));  //into the hand ; (*i_d_player) is vector of cards
       if (i == talon_place)
@@ -325,21 +326,26 @@ void deck_distribution()
       }
     }
   }
+  output("\ntalon:"); 
+  for (auto it = talon.begin(); it != talon.end(); ++it) 
+    output((*it).name);
+  
   deck_distribution_lock_clients.lock();
-  auto i_d_player = d_player.begin();
+  auto i_d_player = d_player.begin();  //(*i_d_player) is vector of cards
   for (auto playing_client = clients.begin(); playing_client != clients.end(); ++playing_client)
   {
     if ((*playing_client).playing == false)
       continue;
     
-    ++i_d_player;
-    ss.str(""); ss << "\nd_player.at(" << i_d_player - d_player.begin() << "):"; output(ss.str());
-    for (auto it = (*i_d_player).begin(); it != (*i_d_player).end(); ++it)     
+    
+    ss.str(""); ss << "\nd_player.at(" << i_d_player - d_player.begin() << "):"; output(ss.str());  //(*i_d_player) is vector of cards
+    for (auto it = (*i_d_player).begin(); it != (*i_d_player).end(); ++it)  //(*i_d_player) is vector of cards
     {
       output((*it).name);
       ss.str(""); ss << make_client_id(playing_client - clients.begin()) << make_head("distribution") << make_block((*it).number);
       message_sender(playing_client - clients.begin(), ss.str()); //send cards to the players
     }
+    ++i_d_player;
   }
   deck_distribution_lock_clients.unlock();
   
@@ -691,6 +697,7 @@ void server(boost::asio::io_service &io_service, unsigned short port)
           reconnected = true;
           inner_number = iterator - clients.begin();
           clients.at(inner_number).reconnect(std::move(sock));
+          clients.at(inner_number).playing = true; /* !! TEMPORARY !! */
         }
       }
 
@@ -700,6 +707,7 @@ void server(boost::asio::io_service &io_service, unsigned short port)
         inner_number = clients.size() - 1;
         std::cout << "server (got alive) __LINE__ = " << __LINE__ << std::endl;
         clients.at(inner_number).connect(std::move(sock), id);
+        clients.at(inner_number).playing = true; /* !! TEMPORARY !! */
       }
       server_lock.unlock();
     }
