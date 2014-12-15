@@ -88,7 +88,10 @@ void chat_sender(char* host, char* port)
       std::cin.clear();
 
       ss.str("");
-      ss << make_client_id(int_client_id) << make_head("chat") << message;
+      ss 
+      << make_client_id(int_client_id) 
+      << make_head("chat") 
+      << make_block(message);
       std::strcpy (data, ss.str().c_str());
       boost::asio::ip::tcp::socket socket(io_service);
       boost::asio::connect(socket, resolver.resolve({host, port}));
@@ -103,6 +106,36 @@ void chat_sender(char* host, char* port)
     std::cerr << "Exception in chat_sender: " << e.what() << "\n";
   }
 }
+
+/*
+void command_sender(std::vector<boost::asio::ip::tcp::socket> socket_for_read)
+{
+  std::string message;
+  std::stringstream ss;
+  try
+  {
+    for (;;)
+    {
+      char data[max_buffer_length] = {};
+      std::cout << "Feel free to enter message here..." << std::endl;
+      getline ( std::cin, message );
+      std::cin.clear();
+
+      ss.str("");
+      ss 
+      << make_client_id(int_client_id) 
+//       << make_head("chat") 
+      << make_block(message);
+      std::strcpy (data, ss.str().c_str());
+      boost::asio::write(socket_for_read.at(0), boost::asio::buffer(data, max_buffer_length));    //send message back to client
+      std::cout << "Message succesfully sent ! " << std::endl;
+    }
+  }
+  catch (std::exception& e)
+  {
+    std::cerr << "Exception in c_sender: " << e.what() << "\n";
+  }
+}*/
 
 int client(char* host, char* port, int int_client_id)
 {
@@ -125,6 +158,7 @@ int client(char* host, char* port, int int_client_id)
     boost::asio::write(_sock_, boost::asio::buffer(request, (size_t)std::strlen(request)));
     
     std::thread ([host, port]{chat_sender(host, port);}).detach(); 
+//     std::thread ([socket_for_read]{command_sender(socket_for_read);}).detach(); 
     while(true)
     {
       boost::asio::read(_sock_,boost::asio::buffer(reply, max_buffer_length));  //don't put this into try; it's lethal

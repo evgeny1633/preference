@@ -15,9 +15,9 @@
 #endif
 
 // #define _sock_ ((clients.at(inner_number)).get_socket())  //this is socket to send messages to the particular client
-#define _id_ (clients.at(inner_number).id)        //what ? //inner_number -- number of element in clients vector, everywhere.
-// #define _sock_ (clients.socket.at(inner_number))  //this is socket to send messages to the particular client
-// #define _id_ (clients.id.at(inner_number))        //what ? //inner_number -- number of element in clients vector, everywhere.
+#define _id_ (clients.at(inner_number).id)                   //what ? //inner_number -- number of element in clients vector, everywhere.
+// #define _sock_ (clients.socket.at(inner_number))          //this is socket to send messages to the particular client
+// #define _id_ (clients.id.at(inner_number))                //what ? //inner_number -- number of element in clients vector, everywhere.
 
 // using boost::asio::ip::tcp;
 using namespace std;
@@ -296,10 +296,11 @@ void deck_distribution()
   
   std::stringstream ss;
   std::vector<card> deck = create_deck();
+  
+  std::srand(time(0));  //without this line random_shuffle will always return the same value
 
-  std::random_shuffle(deck.begin(), deck.end());
-  std::random_shuffle(deck.begin(), deck.end());
-  std::random_shuffle(deck.begin(), deck.end());
+  for (int i = 0; i < rand() % 10 + 2; i++)
+    std::random_shuffle(deck.begin(), deck.end());  //shuffle well
   
   std::unique_lock<std::mutex> deck_distribution_lock_clients(clients_mutex, std::defer_lock);
   
@@ -310,7 +311,6 @@ void deck_distribution()
   
   int talon_place = rand() % 20 + 6;
   talon_place = talon_place + talon_place % 2; //make it even(!)
-  std::cout << "deck_distribution __LINE__ = " << __LINE__ << ";\ttalon_place = " << talon_place << std::endl;
   
   for ( int i = 0; i < 32; )
   {   //deck
@@ -337,9 +337,8 @@ void deck_distribution()
     if ((*playing_client).playing == false)
       continue;
     
-    
     ss.str(""); ss << "\nd_player.at(" << i_d_player - d_player.begin() << "):"; output(ss.str());  //(*i_d_player) is vector of cards
-    for (auto it = (*i_d_player).begin(); it != (*i_d_player).end(); ++it)  //(*i_d_player) is vector of cards
+    for (auto it = (*i_d_player).begin(); it != (*i_d_player).end(); ++it)  //(*i_d_player) is vector of cards (10)
     {
       output((*it).name);
       ss.str(""); ss << make_client_id(playing_client - clients.begin()) << make_head("distribution") << make_block((*it).number);
@@ -379,17 +378,6 @@ std::string check_one(int inner_numer)
   return send_receive(inner_numer, make_message(inner_numer, "alive"));
 }
 
-/*
-void check_one_endless(int inner_numer)
-{
-  std::stringstream ss;
-  while(true)
-  {
-    ss.str(""); ss << make_client_id(inner_numer) << make_head("alive");
-    std::cout << "i send " << send_receive(inner_numer, ss.str()) << std::endl;
-    usleep(5e6);
-  }
-}*/
 
 //check all active players
 std::vector<int> check_alive()
@@ -492,7 +480,9 @@ int trade(int first, int &minimum_bet)   // return the number of player who made
     //here must be some check if the client is alive (see below) and here must be some check to kill the waiting after some time...probably
     if (message == "exception") //in case of exception in send_receive try again
     {
+      trade_clients_lock.unlock();
       std::cerr << "exception trade __LINE__ " << __LINE__  << std::endl;
+      usleep(5e5);
       goto trade_another_try;
     }
     
@@ -529,6 +519,7 @@ int booking(int trade_winner, int minimum_bet)
   if (message == "exception")
   {
       std::cerr << "exception booking __LINE__ " << __LINE__  << std::endl;
+      usleep(5e5);
       goto booking_another_try;
   }
   for (auto it = clients.begin(); it != clients.end(); ++it)
