@@ -19,15 +19,15 @@ void handler_action(int signal_number) //this function will be called when clien
 {
   std::string message;
   std::stringstream ss;
-  char request[max_buffer_length];
-  std::strcpy( request, (make_message(int_client_id, "service", "clientwaskilled")).c_str() );
+  char request_char[max_buffer_length];
+  std::strcpy( request_char, (make_message(int_client_id, "service", "clientwaskilled")).c_str() );
   try
   {
     boost::asio::io_service io_service;
     boost::asio::ip::tcp::resolver resolver(io_service);
     boost::asio::ip::tcp::socket socket(io_service);
     boost::asio::connect(socket, resolver.resolve({host, port}));
-    boost::asio::write(socket, boost::asio::buffer(request, max_buffer_length));    //send message back to client
+    boost::asio::write(socket, boost::asio::buffer(request_char, max_buffer_length));    //send message back to client
     std::cout << std::endl << "Client was killed. Bye !" << std::endl << std::endl;
   }
   catch (std::exception& e) 
@@ -107,35 +107,16 @@ void chat_sender(char* host, char* port)
   }
 }
 
-/*
-void command_sender(std::vector<boost::asio::ip::tcp::socket> socket_for_read)
+
+std::string command_sender(std::string type = "")
 {
   std::string message;
-  std::stringstream ss;
-  try
-  {
-    for (;;)
-    {
-      char data[max_buffer_length] = {};
-      std::cout << "Feel free to enter message here..." << std::endl;
-      getline ( std::cin, message );
-      std::cin.clear();
+  std::cout << "Enter " << type << " command here..." << std::endl;
+  getline ( std::cin, message );
+  std::cin.clear();
 
-      ss.str("");
-      ss 
-      << make_client_id(int_client_id) 
-//       << make_head("chat") 
-      << make_block(message);
-      std::strcpy (data, ss.str().c_str());
-      boost::asio::write(socket_for_read.at(0), boost::asio::buffer(data, max_buffer_length));    //send message back to client
-      std::cout << "Message succesfully sent ! " << std::endl;
-    }
-  }
-  catch (std::exception& e)
-  {
-    std::cerr << "Exception in c_sender: " << e.what() << "\n";
-  }
-}*/
+  return message;
+}
 
 int client(char* host, char* port, int int_client_id)
 {
@@ -150,31 +131,66 @@ int client(char* host, char* port, int int_client_id)
     boost::asio::connect(socket, resolver.resolve({host, port}));
     socket_for_read.push_back(std::move(socket));
     std::cout << std::endl << "Successfully connected !" << std::endl;
-
-    char reply[max_buffer_length];      
-    char request[max_buffer_length];
-    std::strcpy( request, (make_message(int_client_id, "alive")).c_str() );
-//     std::cout << "request = \""<< request << "\"" << std::endl;
-    boost::asio::write(_sock_, boost::asio::buffer(request, (size_t)std::strlen(request)));
     
-    std::thread ([host, port]{chat_sender(host, port);}).detach(); 
+    int minimum_bet = -1;
+
+    char reply_char[max_buffer_length];      
+    char request_char[max_buffer_length];
+    std::string reply;
+    std::string message;
+    std::strcpy( request_char, (make_message(int_client_id, "alive")).c_str() );
+//     std::cout << "request_char = \""<< request_char << "\"" << std::endl;
+    boost::asio::write(_sock_, boost::asio::buffer(request_char, (size_t)std::strlen(request_char)));
+    
+//     std::thread ([host, port]{chat_sender(host, port);}).detach(); 
 //     std::thread ([socket_for_read]{command_sender(socket_for_read);}).detach(); 
     while(true)
     {
-      boost::asio::read(_sock_,boost::asio::buffer(reply, max_buffer_length));  //don't put this into try; it's lethal
+      boost::asio::read(_sock_,boost::asio::buffer(reply_char, max_buffer_length));  //don't put this into try; it's lethal
+      reply = reply_char;
       try
       {
-        if ( get_head((std::string)reply) == "chat" )
+        if ( get_head(reply) == "chat" )
         {
-          std::cout << get_chat_message((std::string)reply) << std::endl;
+          std::cout << get_chat_message(reply) << std::endl;
         }
-        else if ( get_head ((std::string)reply) == "alive" )
+        else if ( get_head (reply) == "alive" )
         {
-          boost::asio::write(_sock_, boost::asio::buffer(reply, (size_t)std::strlen(reply)));
+          boost::asio::write(_sock_, boost::asio::buffer(reply_char, (size_t)std::strlen(reply_char)));
         }
-        else if ( get_head ((std::string)reply) == "service" )
+        else if ( get_head (reply) == "trade" )
         {
-          if ( get_block ((std::string)reply) == "serverwaskilled" )
+          std::cout << "Server sent trade: \"" << reply_char << "\"" << std::endl;
+          if (get_block (reply) == "minimumbet")
+          {
+            minimum_bet = atoi((get_block(reply, 3)).c_str());
+            std::cout << "minimumbet is " << minimum_bet << std::endl;
+          }
+          else if (get_block (reply) == "yourturn")
+          {
+            message = command_sender("trade");
+            std::strcpy( request_char, (make_message(int_client_id, "trade", message)).c_str() );
+            boost::asio::write(_sock_, boost::asio::buffer(request_char, (size_t)std::strlen(request_char)));
+            std::cout << "Sent: " << request_char << std::endl;
+          }
+        }
+        else if ( get_head (reply) == "booking" )
+        {
+          std::cout << "Server sent booking: \"" << reply_char << "\"" << std::endl;
+          std::cout << "get_int_client_id (reply) = " << get_int_client_id (reply) << std::endl;
+          std::cout << "int_client_id = " << int_client_id << std::endl;
+          if (get_int_client_id (reply) == int_client_id)
+          {
+            message = command_sender("booking");
+            std::strcpy( request_char, (make_message(int_client_id, "booking", message)).c_str() );
+            boost::asio::write(_sock_, boost::asio::buffer(request_char, (size_t)std::strlen(request_char)));
+            std::cout << "Sent: " << request_char << std::endl;
+          }
+        }
+        
+        else if ( get_head (reply) == "service" )
+        {
+          if ( get_block (reply) == "serverwaskilled" )
           {
             std::cerr << std::endl << "Server said that he was killed. What should we do ? " << std::endl;
             _sock_.shutdown(boost::asio::ip::tcp::socket::shutdown_send);
@@ -184,7 +200,7 @@ int client(char* host, char* port, int int_client_id)
         }
         else
         {
-          std::cout << "Server sent: \"" << reply << "\"" << std::endl;
+          std::cout << "Server sent: \"" << reply_char << "\"" << std::endl;
         }
       }
       catch (std::exception& e)
@@ -215,11 +231,11 @@ int main(int argc, char* argv[])
   port = argv[2];
   srand (time(NULL));  // initialize random seed: 
 //   int_client_id = 18; 
-  int_client_id = rand() % 30 + 3 ; //range 3-32
+  int_client_id = rand() % 80 + 3 ; //range 3-32
   std::cout << std::endl
             << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl
             << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl
-            << "\tClient # " << int_client_id << " is started "   << std::endl
+            << "\tClient # " << int_client_id << " is started " << std::endl
             << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl
             << "++++++++++++++++++++++++++++++++++++++++++++++" << std::endl
             << std::endl;

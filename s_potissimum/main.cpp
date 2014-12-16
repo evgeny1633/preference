@@ -341,7 +341,7 @@ void deck_distribution()
     for (auto it = (*i_d_player).begin(); it != (*i_d_player).end(); ++it)  //(*i_d_player) is vector of cards (10)
     {
       output((*it).name);
-      ss.str(""); ss << make_client_id(playing_client - clients.begin()) << make_head("distribution") << make_block((*it).number);
+      ss.str(""); ss << make_client_id((*playing_client).id) << make_head("distribution") << make_block((*it).number);
       message_sender(playing_client - clients.begin(), ss.str()); //send cards to the players
     }
     ++i_d_player;
@@ -424,11 +424,8 @@ int trade(int first, int &minimum_bet)   // return the number of player who made
       (*it).bet = -1;  //reset them all
       
   auto playing_client = clients.begin();
-  while(true)
+  for (playing_client = clients.begin(); playing_client != clients.end(); playing_client++)
   { 
-    if (playing_client == clients.end()) //should never be true
-      break;
-    ++playing_client;
     if ((*playing_client).playing == false)
       continue;
     if (counter == first) // we shall start trade from this place
@@ -440,43 +437,45 @@ int trade(int first, int &minimum_bet)   // return the number of player who made
   while(true)
   { //cycle from the particular place in the vector until the end of the trading
     trade_clients_lock.lock();
-    playing_client++;
     if (playing_client == clients.end())
     {
       playing_client = clients.begin();
+      trade_clients_lock.unlock();
       continue;
     }
-    
+
+    //begin counting "pass"es
+    bet_number = 0;
+    for (auto iter = clients.begin(); iter != clients.end(); ++iter)  
+      if ((*iter).bet != 0) //check how many people have bets; need to be 0 or 1 to end the trade
+        bet_number++;
+      
+    if (bet_number == 0)      /*raspass*/
+    {
+      trade_clients_lock.unlock();
+      return -1;              /*raspass*/
+    }
+    else if (bet_number == 1) //booking was made
+    {
+      for (auto iter = clients.begin(); iter != clients.end(); ++iter)  
+        if ((*iter).bet != 0)
+        {
+          trade_clients_lock.unlock();
+          return (*iter).id; // number of player who made the booking;
+        }
+    }//end counting "pass"es
+      
     if ((*playing_client).bet == 0) // "pass" -> 0 ; bet > 0; no decision -> -1
     {
-      bet_number = 0;
-      for (auto iter = clients.begin(); iter != clients.end(); ++iter)  
-        if ((*iter).bet != 0) //check how many people have bets; need to be 0 or 1 to end the trade
-          bet_number++;
-        
-      if (bet_number == 0)      /*raspass*/
-      {
-        trade_clients_lock.unlock();
-        return -1;              /*raspass*/
-      }
-      else if (bet_number == 1) //booking was made
-      {
-        for (auto iter = clients.begin(); iter != clients.end(); ++iter)  
-          if ((*iter).bet != 0)
-          {
-            trade_clients_lock.unlock();
-            return iter - clients.begin(); // number of player who made the booking;
-          }
-      }
-          
+      playing_client++;    
       trade_clients_lock.unlock();
       continue;
     }
     
     trade_another_try: //in case of exception in send_receive try another time (see below)
     message = make_block("minimumbet") + make_block(minimum_bet);
-    message_sender(playing_client - clients.begin(), make_message(playing_client - clients.begin(), "trade", message));
-    message = send_receive(playing_client - clients.begin(), make_message(playing_client - clients.begin(), "trade", "yourturn"));  //I expect bet in the reply
+    message_sender        (playing_client - clients.begin(), make_message((*playing_client).id, "trade", message));
+    message = send_receive(playing_client - clients.begin(), make_message((*playing_client).id, "trade", "yourturn"));  //I expect bet in the reply
     //here must be some check if the client is alive (see below) and here must be some check to kill the waiting after some time...probably
     if (message == "exception") //in case of exception in send_receive try again
     {
@@ -490,11 +489,11 @@ int trade(int first, int &minimum_bet)   // return the number of player who made
       if ((*it).connected)
         message_sender(it - clients.begin(), message);//send received message to everybody
       
-    std::cout << atoi((get_block(message)).c_str()) << std::endl;
     (*playing_client).bet = atoi((get_block(message)).c_str());
     if (minimum_bet < (*playing_client).bet)
       minimum_bet = (*playing_client).bet;
     
+    playing_client++;
     trade_clients_lock.unlock();
   }
 }
