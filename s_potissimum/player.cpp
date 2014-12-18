@@ -5,7 +5,16 @@ player::player()
   id = -1;
   bet = -1;
   connected = false;
-  playing = false;
+  playing   = false;
+
+  vister    = false;
+  bidder    = false;
+  
+  mountain      = 0;
+  pool          = 0;
+  vist_up       = 0;
+  vist_down     = 0;
+  vist_opposite = 0;  //for 4
 }
 
 void player::reconnect(boost::asio::ip::tcp::socket sock)

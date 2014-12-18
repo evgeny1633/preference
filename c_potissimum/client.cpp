@@ -176,15 +176,21 @@ int client(char* host, char* port, int int_client_id)
         }
         else if ( get_head (reply) == "booking" )
         {
-          std::cout << "Server sent booking: \"" << reply_char << "\"" << std::endl;
-          std::cout << "get_int_client_id (reply) = " << get_int_client_id (reply) << std::endl;
-          std::cout << "int_client_id = " << int_client_id << std::endl;
-          if (get_int_client_id (reply) == int_client_id)
+          if (get_int_client_id (reply) == int_client_id && get_block(reply) == "decision")
           {
             message = command_sender("booking");
+            message = append_block(make_block("booking") , message); // to make [booking___][message]
             std::strcpy( request_char, (make_message(int_client_id, "booking", message)).c_str() );
             boost::asio::write(_sock_, boost::asio::buffer(request_char, (size_t)std::strlen(request_char)));
             std::cout << "Sent: " << request_char << std::endl;
+          }
+          if (get_block(reply) == "booking")
+          {
+            std::cout << "Server sent finish booking: \"" << reply_char << std::endl;
+          }
+          else 
+          {
+            std::cout << "Server sent start booking: \"" << reply_char << std::endl; 
           }
         }
         

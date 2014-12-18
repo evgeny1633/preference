@@ -44,7 +44,7 @@ void output (std::string string, bool with_new_line)
   if (with_new_line)
     std::cout << string << std::endl;
   else
-    std::cout << string;
+    std::cout << string << ";\t";
   #ifdef __QT__
   updater.send_message_slot(QString::fromStdString(string));
   #endif
@@ -326,9 +326,6 @@ void deck_distribution()
       }
     }
   }
-  output("\ntalon:"); 
-  for (auto it = talon.begin(); it != talon.end(); ++it) 
-    output((*it).name);
   
   deck_distribution_lock_clients.lock();
   auto i_d_player = d_player.begin();  //(*i_d_player) is vector of cards
@@ -340,7 +337,7 @@ void deck_distribution()
     ss.str(""); ss << "\nd_player.at(" << i_d_player - d_player.begin() << "):"; output(ss.str());  //(*i_d_player) is vector of cards
     for (auto it = (*i_d_player).begin(); it != (*i_d_player).end(); ++it)  //(*i_d_player) is vector of cards (10)
     {
-      output((*it).name);
+      output((*it).name, false);
       ss.str(""); ss << make_client_id((*playing_client).id) << make_head("distribution") << make_block((*it).number);
       message_sender(playing_client - clients.begin(), ss.str()); //send cards to the players
     }
@@ -349,7 +346,7 @@ void deck_distribution()
   deck_distribution_lock_clients.unlock();
   
   output("\ntalon:"); 
-  for (auto it = talon.begin(); it != talon.end(); ++it) output((*it).name);
+  for (auto it = talon.begin(); it != talon.end(); ++it) output((*it).name, false);
   /*
   output("pl1:");     ss.str(""); for (auto it = pl1.begin(); it != pl1.end(); ++it)     ss << (*it).suit;  output(ss.str().c_str());
                       ss.str(""); for (auto it = pl1.begin(); it != pl1.end(); ++it)     ss << (*it).value; output(ss.str().c_str());
@@ -443,6 +440,8 @@ int trade(int first, int &minimum_bet)   // return the number of player who made
       trade_clients_lock.unlock();
       continue;
     }
+    if ((*playing_client).playing == false)
+      continue;
 
     //begin counting "pass"es
     bet_number = 0;
@@ -455,10 +454,10 @@ int trade(int first, int &minimum_bet)   // return the number of player who made
       trade_clients_lock.unlock();
       return -1;              /*raspass*/
     }
-    else if (bet_number == 1) //booking was made
+    else if (bet_number == 1) //booking was made or there were 2 passes; 
     {
       for (auto iter = clients.begin(); iter != clients.end(); ++iter)  
-        if ((*iter).bet != 0)
+        if ((*iter).bet > 0)
         {
           trade_clients_lock.unlock();
           return (*iter).id; // number of player who made the booking;
@@ -498,22 +497,32 @@ int trade(int first, int &minimum_bet)   // return the number of player who made
   }
 }
 
-void show_talon() {std::cout << "show_talon  __LINE__ = " << __LINE__ << std::endl; usleep(5e6);}
+void show_talon() {std::cout << "show_talon  __LINE__ = " << __LINE__ << std::endl; usleep(0e6);}
 
 int booking(int trade_winner, int minimum_bet)
 {
+//   std::cout << "booking  __LINE__ = " << __LINE__ << std::endl;
   if (trade_winner == -1) /*raspass*/
     return -1;
+  
+  std::unique_lock<std::mutex> booking_clients_lock(clients_mutex, std::defer_lock);  //clever lock
+  booking_clients_lock.lock();
+  int inner_number_trade_winner;
+  for (auto it = clients.begin(); it != clients.end(); ++it)
+    if ((*it).playing)
+      if((*it).id == trade_winner)
+        inner_number_trade_winner = it - clients.begin();
   
   for (auto it = clients.begin(); it != clients.end(); ++it)
     if ((*it).connected)
       message_sender(it - clients.begin(), make_message(trade_winner, "booking", minimum_bet));  //tell everybody who is booking
-  
+  std::cout << "booking  __LINE__ = " << __LINE__ << std::endl;
   std::string message;
   std::cout << "booking  __LINE__ = " << __LINE__ << std::endl;
   
   booking_another_try:
-  message = send_receive(trade_winner, make_message(trade_winner, "booking", "decision"));  //I expect bet in the reply
+  message = send_receive(inner_number_trade_winner, make_message(trade_winner, "booking", "decision"));  //I expect bet in the reply
+  std::cout << "booking  __LINE__ = " << __LINE__ << std::endl;
   //here must be some check if the client is alive (see below) and here must be some check to kill the waiting after some time...probably
   if (message == "exception")
   {
@@ -521,16 +530,21 @@ int booking(int trade_winner, int minimum_bet)
       usleep(5e5);
       goto booking_another_try;
   }
+  std::cout << "booking  __LINE__ = " << __LINE__ << std::endl;
   for (auto it = clients.begin(); it != clients.end(); ++it)
     if ((*it).connected)
-      message_sender(it - clients.begin(), message);  //tell everybody who is booking
+      message_sender(it - clients.begin(), message);  //tell everybody what was booked finally
       
+  std::cout << "booking  __LINE__ = " << __LINE__ << std::endl;
+  
   if (get_block(message) == "withoutthree")
   { //don't do calculations here. we should do them in the more appropriate place
     std::cout << "booking; player " << clients.at(trade_winner).id << " went without three from bet " << minimum_bet << std::endl;
+    booking_clients_lock.unlock();
     return -3;
   }
-  
+  booking_clients_lock.unlock();
+
   std::cout << "booking; atoi( get_block(message).c_str() ) = " << atoi( get_block(message).c_str() ) << std::endl;
   return atoi( get_block(message).c_str() ); //this should be a final bet (int > 0)
   
@@ -544,6 +558,7 @@ void cleaning()   {std::cout << "cleaning __LINE__ = " << __LINE__ << std::endl;
 //main game cycle
 void game_cycle()
 {
+//   std::cout << "game_cycle __LINE__ = " << __LINE__ << std::endl;
   std::vector<int> check;
   std::stringstream ss;
   usleep(5e6);
@@ -571,9 +586,7 @@ void game_cycle()
     do
     {
       check.resize(0);
-      std::cout << "game_cycle __LINE__ = " << __LINE__ << std::endl;
       check = check_alive();
-      std::cout << "game_cycle __LINE__ = " << __LINE__ << std::endl;
       for (auto iterator : check)
       {
         ss.str("");  ss << "waiting for client " << iterator << " to connect";  output (ss.str());
@@ -584,14 +597,18 @@ void game_cycle()
         usleep(5e6);
       }
     } while ( check.size() != 0 );
+    
     final_bet = -1;
     trade_winner = -1;
     
-    deck_distribution();  //should return talon somehow
+    deck_distribution();                            //should return talon somehow
     trade_winner = trade(trade_first, minimum_bet); //done
-    show_talon(); // not done
-    final_bet = booking(trade_winner, minimum_bet);  //simple
-    if (final_bet == -3)  //skip the moves
+    if (trade_winner != -1)                         //if somebode booked the game
+      show_talon();                                 // not done
+    final_bet = booking(trade_winner, minimum_bet); //simple
+    minimum_bet = -1; /* ????? */
+    
+    if (final_bet == -3)                            //skip the moves
     {
       result();  //god knows what we should pass there...
       cleaning();

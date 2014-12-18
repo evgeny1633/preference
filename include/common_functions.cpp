@@ -32,6 +32,19 @@ std::string make_block(std::string block)
   return block; // "[____][____][____][__" -> "[____][____][____][____]"  fill the rest of the block at the end with the "_EMPTY_SYMBOL_" (don't forget to compare it with the max_buffer_length)
 }
 
+std::string append_block(std::string &message, std::string block)
+{
+  message.append(make_block(block));
+  return message;
+}
+
+std::string append_block(std::string message, std::string block)
+{
+  message.append(make_block(block));
+  return message;
+}
+
+
 std::string make_block(int block)
 {
   std::stringstream ss;
