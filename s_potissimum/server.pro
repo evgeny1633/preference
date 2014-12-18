@@ -11,15 +11,18 @@ QT += widgets
 HEADERS += statistics.h widget.h log.h \
     ../include/include.h \
     ../include/updater.h \
-    player.h
+    player.h \
+    ../c_potissimum/client_command_sender.h
 SOURCES += main.cpp statistics.cpp widget.cpp log.cpp \
     ../include/updater.cpp \
     ../include/common_functions.cpp \
-    player.cpp
+    player.cpp \
+    ../c_potissimum/client_command_sender.cpp
 RESOURCES += avatars.qrc
 
 FORMS += \
-    Log.ui
+    Log.ui \
+    ../c_potissimum/client_command_sender.ui
 QMAKE_CXXFLAGS += -std=c++11 -lpthread -lboost_system
 
 LIBS += -std=c++11 -lpthread -lboost_system
