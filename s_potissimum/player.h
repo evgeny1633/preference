@@ -26,6 +26,15 @@ public:
   bool connected;
   bool playing;
   
+  bool vister;
+  bool bidder;
+  
+  int mountain;
+  int pool;
+  int vist_up;
+  int vist_down;
+  int vist_opposite;  //for 4
+    
   bool version;
   
 };
